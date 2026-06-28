@@ -1,0 +1,1 @@
+export default function ReceiptTemplate(){ return <div>Receipt</div>; }

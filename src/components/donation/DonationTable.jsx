@@ -1,0 +1,1 @@
+export default function DonationTable(){ return <div>Donation Table</div>; }

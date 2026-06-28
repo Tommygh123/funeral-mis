@@ -1,0 +1,1 @@
+export default function ReceiptPreview(){ return <div>Receipt Preview</div>; }

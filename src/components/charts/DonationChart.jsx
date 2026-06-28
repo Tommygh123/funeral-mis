@@ -1,0 +1,1 @@
+export default function DonationChart(){ return <div>Chart</div>; }

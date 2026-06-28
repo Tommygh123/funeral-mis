@@ -1,0 +1,1 @@
+export default function ThermalPrintView(){ return <div>Thermal Print</div>; }

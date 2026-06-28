@@ -1,0 +1,1 @@
+export default function PrintReceipt(){ return <div>Print</div>; }

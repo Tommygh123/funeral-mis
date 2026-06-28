@@ -1,0 +1,1 @@
+export default function FuneralTable(){ return <div>Table</div>; }

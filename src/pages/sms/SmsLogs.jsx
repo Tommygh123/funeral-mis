@@ -1,0 +1,1 @@
+export default function SmsLogs(){ return <div>SMS Logs</div>; }

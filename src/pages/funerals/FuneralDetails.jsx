@@ -1,0 +1,1 @@
+export default function FuneralDetails(){ return <div>Details</div>; }

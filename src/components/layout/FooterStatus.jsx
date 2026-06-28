@@ -1,0 +1,1 @@
+export default function FooterStatus(){ return <div>Status</div>; }

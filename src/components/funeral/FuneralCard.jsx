@@ -1,0 +1,1 @@
+export default function FuneralCard(){ return <div>Funeral Card</div>; }
