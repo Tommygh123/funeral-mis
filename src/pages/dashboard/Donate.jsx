@@ -108,7 +108,7 @@ const Donate = () => {
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '450px', margin: '40px auto', fontFamily: 'sans-serif' }}>
+    <div className="form-page" style={{ maxWidth: 450, margin: '40px auto', fontFamily: 'sans-serif' }}>
       {loading ? <p>Loading...</p> : error ? <p style={{ color: 'red' }}>{error}</p> : funeral ? (
         <form onSubmit={handlePayment} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
           <h1 style={{ textAlign: 'center' }}>Donation Portal</h1>
@@ -121,7 +121,7 @@ const Donate = () => {
           <input type="text" placeholder="Your Full Name" required style={inputStyle} onChange={(e) => setForm({...form, name: e.target.value})} />
           <input type="text" placeholder="Recipient Name" required style={inputStyle} onChange={(e) => setForm({...form, recipientName: e.target.value})} />
           
-          <div style={{ display: 'flex', gap: '10px' }}>
+          <div className="phone-input-row">
             <select style={{ ...inputStyle, width: '120px' }} onChange={(e) => setForm({...form, countryCode: e.target.value})}>
               {internationalCodes.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
             </select>

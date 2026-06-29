@@ -103,22 +103,8 @@ function ResetPassword() {
   };
 
   return (
-    <div style={{
-      minHeight: '100vh',
-      display: 'flex',
-      justifyContent: 'center',
-      alignItems: 'center',
-      background: '#f5f7fb',
-      fontFamily: 'Arial'
-    }}>
-
-      <div style={{
-        width: '420px',
-        background: 'white',
-        padding: '40px',
-        borderRadius: '12px',
-        boxShadow: '0 4px 12px rgba(0,0,0,0.08)'
-      }}>
+    <div className="auth-page" style={{ background: '#f5f7fb', fontFamily: 'Arial' }}>
+      <div className="auth-card" style={{ maxWidth: 420, borderRadius: 12, boxShadow: '0 4px 12px rgba(0,0,0,0.08)' }}>
 
         <h1>Reset Password</h1>
 

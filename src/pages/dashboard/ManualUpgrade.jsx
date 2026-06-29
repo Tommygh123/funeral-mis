@@ -68,8 +68,8 @@ function ManualUpgrade() {
   };
 
   return (
-    <div style={{ padding: '30px', fontFamily: 'Inter' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+    <div className="page-padding" style={{ fontFamily: 'Inter' }}>
+      <div className="flex-between-wrap">
         <h1>{view === 'form' ? '⚡ Manual Offline Upgrade' : '💳 Payment History'}</h1>
         <button onClick={() => setView(view === 'form' ? 'history' : 'form')} style={buttonStyle}>
           {view === 'form' ? 'View Payment History' : 'Back to Upgrade Form'}
@@ -101,10 +101,11 @@ function ManualUpgrade() {
         </form>
       ) : (
         <div style={{ marginTop: '20px' }}>
-          <div style={{ display: 'flex', gap: '20px', marginBottom: '20px' }}>
+          <div className="flex-row-wrap" style={{ marginBottom: '20px' }}>
             <div style={statCard}><h3>Total GHS</h3><p style={statVal}>₵{totals.GHS.toLocaleString()}</p></div>
             <div style={statCard}><h3>Total USD</h3><p style={statVal}>${totals.USD.toLocaleString()}</p></div>
           </div>
+          <div className="table-wrapper">
           <table style={{ width: '100%', borderCollapse: 'collapse' }}>
             <thead><tr style={{ textAlign: 'left', borderBottom: '2px solid #ddd' }}><th>Date</th><th>Institution</th><th>Plan</th><th>Amount</th><th>Ref</th></tr></thead>
             <tbody>
@@ -117,6 +118,7 @@ function ManualUpgrade() {
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       )}
     </div>

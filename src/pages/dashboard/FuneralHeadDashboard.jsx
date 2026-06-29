@@ -54,7 +54,7 @@ function FuneralHeadDashboard() {
       </header>
 
       {/* Responsive Grid */}
-      <div style={styles.grid}>
+      <div className="grid-cols-2" style={{ gap: '10px', marginBottom: '20px' }}>
         {Object.entries(totals).map(([cur, val]) => (
           <div key={cur} style={styles.card}>
             <div style={styles.cardLabel}>{cur}</div>
@@ -65,7 +65,7 @@ function FuneralHeadDashboard() {
 
       <div style={styles.tableCard}>
         <h3 style={styles.sectionTitle}>Recent Contributions</h3>
-        <div style={styles.tableWrapper}>
+        <div className="table-wrapper">
           <table style={styles.table}>
             <thead>
               <tr style={styles.trHead}>

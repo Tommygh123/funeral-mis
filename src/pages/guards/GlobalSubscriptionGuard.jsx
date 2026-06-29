@@ -54,7 +54,7 @@ function GlobalSubscriptionGuard({ children }) {
     return (
       <div style={styles.lockoutOverlay}>
         <style>{blinkKeyframes}</style>
-        <h1 style={styles.blink}>⚠️ SUBSCRIPTION EXPIRED</h1>
+        <h1 className="responsive-lockout-title" style={styles.blink}>⚠️ SUBSCRIPTION EXPIRED</h1>
         <p style={styles.text}>Your access is restricted. Please upgrade your plan to continue.</p>
         <button onClick={() => navigate('/admin/upgrade')} style={styles.upgradeBtn}>
           Upgrade Plan Now
@@ -70,7 +70,7 @@ const blinkKeyframes = `@keyframes blink { 0% { opacity: 1; } 50% { opacity: 0.3
 const styles = {
   center: { display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh', color: '#64748b' },
   lockoutOverlay: { padding: '60px 20px', textAlign: 'center', background: '#fff', minHeight: '100vh', display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center' },
-  blink: { animation: 'blink 1.5s linear infinite', color: '#dc2626', fontSize: '3rem', marginBottom: '20px' },
+  blink: { animation: 'blink 1.5s linear infinite', color: '#dc2626', marginBottom: '20px' },
   text: { color: '#475569', fontSize: '1.1rem', maxWidth: '500px', marginBottom: '30px', lineHeight: '1.6' },
   upgradeBtn: { padding: '16px 32px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold', fontSize: '1rem' }
 };

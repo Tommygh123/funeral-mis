@@ -180,7 +180,7 @@ function DonationEntry() {
           <label>Donor Name</label>
           <input name="donor_name" value={form.donor_name} onChange={handleChange} style={styles.input} />
           <label>Donor Phone</label>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="phone-input-row">
             <select name="donor_country_code" value={form.donor_country_code} onChange={handleChange} style={{ width: '100px', ...styles.input }}>{internationalCodes.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</select>
             <input name="donor_phone_national" type="tel" value={form.donor_phone_national} onChange={handleChange} style={{ flex: 1, ...styles.input }} />
           </div>
@@ -188,7 +188,7 @@ function DonationEntry() {
           <input name="recipient_name" value={form.recipient_name} onChange={handleChange} style={styles.input} />
           <input name="recipient_relation" value={form.recipient_relation} onChange={handleChange} style={styles.input} placeholder="Relation" />
           <label>Amount</label>
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="amount-input-row">
             <input name="amount" type="number" value={form.amount} onChange={handleChange} style={{ flex: 2, ...styles.input }} />
             <select name="currency" value={form.currency} onChange={handleChange} style={{ flex: 1, ...styles.input }}><option value="GHS">GHS</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select>
           </div>

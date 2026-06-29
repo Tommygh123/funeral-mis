@@ -78,7 +78,7 @@ function CreateUser() {
     <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto', fontFamily: 'system-ui' }}>
       <div style={{ background: '#fff', padding: '25px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
         <h2>{editMode ? "Edit User" : "Create New User"}</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+        <div className="grid-form-2">
           <input placeholder="Full Name" value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} style={inputStyle} />
           <input placeholder="Email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} disabled={editMode} style={inputStyle} />
           <input placeholder="Phone" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} style={inputStyle} />
@@ -99,6 +99,7 @@ function CreateUser() {
         <button onClick={handleSubmit} style={btnStyle}>{loading ? "Processing..." : "Save User"}</button>
       </div>
 
+      <div className="table-wrapper">
       <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
         <thead><tr style={{ background: '#f1f5f9', textAlign: 'left' }}><th style={thStyle}>Name</th><th style={thStyle}>Role</th><th style={thStyle}>Action</th></tr></thead>
         <tbody>
@@ -111,6 +112,7 @@ function CreateUser() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

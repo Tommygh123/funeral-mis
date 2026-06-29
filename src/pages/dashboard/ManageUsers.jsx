@@ -33,6 +33,7 @@ function ManageUsers() {
   return (
     <div style={{ padding: '20px' }}>
       <h2>Manage Team</h2>
+      <div className="table-wrapper">
       <table style={{ width: '100%', borderCollapse: 'collapse' }}>
         <thead>
           <tr style={{ textAlign: 'left', borderBottom: '2px solid #e2e8f0' }}>
@@ -59,6 +60,7 @@ function ManageUsers() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

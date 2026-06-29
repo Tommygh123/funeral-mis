@@ -38,7 +38,7 @@ function QRGenerator() {
     <div style={styles.container}>
       <h2 style={styles.title}>QR Code Generator</h2>
       
-      <div style={styles.layout}>
+      <div className="grid-sidebar-sm">
         <div style={styles.sidebar}>
           <div style={styles.list}>
             {funerals.map(f => (

@@ -110,7 +110,7 @@ function CreateFuneral() {
   const isAtLimit = institution.total_funerals_registered >= institution.limit;
 
   return (
-    <div style={{ padding: '20px', maxWidth: '600px', margin: 'auto' }}>
+    <div className="form-page" style={{ maxWidth: 600, margin: 'auto' }}>
       <h2>Register Funeral ({institution.total_funerals_registered} / {institution.limit} used)</h2>
       
       {isAtLimit ? (
@@ -125,7 +125,7 @@ function CreateFuneral() {
           <label>Deceased Name (Required)</label>
           <input name="full_name" onChange={handleChange} style={inputStyle} required />
           
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+          <div className="grid-form-2" style={{ gap: '10px' }}>
             <select name="gender" onChange={handleChange} style={inputStyle} required>
                 <option value="">Gender</option>
                 <option value="Male">Male</option>

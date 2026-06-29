@@ -61,7 +61,7 @@ function SuperAdminSmsLogs() {
 
   return (
     <div style={styles.container}>
-      <div style={styles.headerRow}>
+      <div className="flex-between-wrap" style={styles.headerRow}>
         <div>
           <h2 style={styles.title}>Global SMS Traffic Monitor</h2>
           <p style={styles.subtitle}>Traffic grouped by institutional tenants.</p>
@@ -78,10 +78,11 @@ function SuperAdminSmsLogs() {
       ) : (
         Object.entries(groupedLogs).map(([instName, logs]) => (
           <div key={instName} style={styles.groupContainer}>
-            <div style={styles.groupTitleRow}>
+            <div className="flex-between-wrap" style={styles.groupTitleRow}>
               <h3 style={styles.groupTitle}>{instName}</h3>
               <span style={styles.countBadge}>{logs.length} Total Logs</span>
             </div>
+            <div className="table-wrapper">
             <table style={styles.table}>
               <thead>
                 <tr style={styles.thead}>
@@ -114,6 +115,7 @@ function SuperAdminSmsLogs() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         ))
       )}

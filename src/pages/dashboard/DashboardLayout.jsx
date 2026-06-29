@@ -49,6 +49,7 @@ function DashboardLayout({ role }) {
   const navigate = useNavigate();
   const location = useLocation();
   const isInitialized = useRef(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   
   const [institution, setInstitution] = useState({ name: 'LegacyCloud', logo_url: '', streaming_enabled: false, sub_end: null });
   const [loading, setLoading] = useState(true);
@@ -81,6 +82,15 @@ function DashboardLayout({ role }) {
 
   useEffect(() => { loadInstitution(); }, [loadInstitution]);
 
+  useEffect(() => {
+    setSidebarOpen(false);
+  }, [location.pathname]);
+
+  useEffect(() => {
+    document.body.style.overflow = sidebarOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [sidebarOpen]);
+
   const isExpiringSoon = institution.sub_end && (new Date(institution.sub_end) - new Date()) < (7 * 24 * 60 * 60 * 1000);
 
   const handleLogout = async () => {
@@ -89,11 +99,34 @@ function DashboardLayout({ role }) {
     navigate('/login', { replace: true });
   };
 
+  const handleNav = (path) => {
+    navigate(path);
+    setSidebarOpen(false);
+  };
+
   if (loading) return <div style={styles.loader}>Initializing Workspace...</div>;
 
   return (
-    <div style={styles.wrapper}>
-      <div style={styles.sidebar}>
+    <div className="dashboard-shell">
+      <div className="dashboard-mobile-header no-print">
+        <button
+          type="button"
+          className="mobile-nav-toggle"
+          onClick={() => setSidebarOpen((open) => !open)}
+          aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
+        >
+          {sidebarOpen ? '✕' : '☰'}
+        </button>
+        <span style={{ fontWeight: 600, fontSize: '14px' }}>{institution.name}</span>
+      </div>
+
+      <div
+        className={`sidebar-overlay ${sidebarOpen ? 'visible' : ''}`}
+        onClick={() => setSidebarOpen(false)}
+        aria-hidden="true"
+      />
+
+      <aside className={`dashboard-sidebar no-print ${sidebarOpen ? 'open' : ''}`}>
         <div>
           <div style={styles.brandBox}>
             <h3 style={styles.brandText}>LegacyCloud</h3>
@@ -105,15 +138,11 @@ function DashboardLayout({ role }) {
             {menuItems.map((item) => {
               const isActive = location.pathname === item.path;
               return (
-                <button 
-                  key={item.path} 
-                  onClick={() => navigate(item.path)} 
-                  style={{ 
-                    ...styles.btn, 
-                    background: isActive ? '#1e293b' : 'transparent',
-                    color: isActive ? '#ffffff' : '#94a3b8',
-                    borderLeft: isActive ? '4px solid #2563eb' : '4px solid transparent'
-                  }}
+                <button
+                  key={item.path}
+                  type="button"
+                  onClick={() => handleNav(item.path)}
+                  className={`sidebar-nav-btn ${isActive ? 'active' : ''}`}
                 >
                   {item.label}
                 </button>
@@ -121,30 +150,25 @@ function DashboardLayout({ role }) {
             })}
           </nav>
         </div>
-        <button style={styles.logout} onClick={handleLogout}>
+        <button type="button" className="sidebar-logout-btn" onClick={handleLogout}>
           Close Session
         </button>
-      </div>
-      <div style={styles.main}><Outlet /></div>
+      </aside>
+
+      <main className="dashboard-main">
+        <Outlet />
+      </main>
     </div>
   );
 }
 
 const styles = {
-  wrapper: { display: 'flex', height: '100vh', background: '#f8fafc', width: '100vw' },
   loader: { display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh', color: '#64748b' },
-  sidebar: { width: '280px', background: '#0f172a', padding: '24px', display: 'flex', flexDirection: 'column', justifyContent: 'space-between' },
   brandBox: { marginBottom: '32px', color: '#fff', borderBottom: '1px solid #1e293b', paddingBottom: '16px' },
   brandText: { fontSize: '18px', margin: '0 0 4px 0', letterSpacing: '0.02em' },
   roleSub: { fontSize: '10px', color: '#fbbf24', fontWeight: '700', letterSpacing: '0.05em' },
   warningBanner: { marginTop: '10px', fontSize: '10px', color: '#f59e0b', fontWeight: 'bold' },
-  menu: { display: 'flex', flexDirection: 'column', gap: '8px' },
-  btn: { 
-    padding: '12px 16px', borderRadius: '0 8px 8px 0', border: 'none', textAlign: 'left', cursor: 'pointer', 
-    background: 'transparent', color: '#94a3b8', transition: 'all 0.15s ease', fontSize: '14px'
-  },
-  logout: { padding: '12px', background: '#ef4444', color: '#fff', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' },
-  main: { flex: 1, padding: '40px', overflowY: 'auto' }
+  menu: { display: 'flex', flexDirection: 'column', gap: '8px' }
 };
 
 export default DashboardLayout;

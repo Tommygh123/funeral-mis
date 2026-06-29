@@ -91,16 +91,16 @@ function Reports() {
 
   return (
     <div style={{ padding: 25, background: '#f8fafc', minHeight: '100vh' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 20 }}>
+      <div className="flex-between-wrap" style={{ marginBottom: 20 }}>
         <h1>Funeral Reports</h1>
-        <div>
+        <div className="flex-row-wrap">
           <button onClick={exportExcel} style={{ background: '#16a34a', color: '#fff', padding: '10px 20px', borderRadius: 8, border: 0, marginRight: 10, cursor: 'pointer' }}>Excel</button>
           <button onClick={exportPDF} style={{ background: '#dc2626', color: '#fff', padding: '10px 20px', borderRadius: 8, border: 0, cursor: 'pointer' }}>PDF</button>
         </div>
       </div>
 
       {/* Colored Stats Cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 15, marginBottom: 25 }}>
+      <div className="grid-cols-4" style={{ gap: 15, marginBottom: 25 }}>
         {[['GHS', '#dcfce7', '#166534'], ['USD', '#dbeafe', '#1e40af'], ['EUR', '#fef3c7', '#92400e'], ['GBP', '#f3e8ff', '#6b21a8']].map(([cur, bg, text]) => (
           <div key={cur} style={{ background: bg, color: text, padding: 20, borderRadius: 10, borderLeft: `6px solid ${text}` }}>
             <p style={{ margin: 0, fontWeight: 'bold' }}>Total {cur}</p>
@@ -118,11 +118,13 @@ function Reports() {
         return (
           <div key={method} style={{ background: '#fff', borderRadius: 10, marginBottom: 25, overflow: 'hidden', boxShadow: '0 2px 4px rgba(0,0,0,0.05)' }}>
             <h3 style={{ background: '#0b1f3a', color: '#fff', margin: 0, padding: 15 }}>Payment Mode: {method}</h3>
+            <div className="table-wrapper">
             <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left' }}>
               <thead><tr style={{ background: '#f1f5f9' }}><th style={{ padding: 12 }}>Donor</th><th style={{ padding: 12 }}>Recipient</th><th style={{ padding: 12 }}>Phone</th><th style={{ padding: 12 }}>Amount</th><th style={{ padding: 12 }}>Date</th></tr></thead>
               <tbody>{grouped[method].map(t => <tr key={t.id} style={{ borderBottom: '1px solid #f1f5f9' }}><td style={{ padding: 12 }}>{t.donor_name}</td><td style={{ padding: 12 }}>{t.recipient_name}</td><td style={{ padding: 12 }}>{t.donor_phone}</td><td style={{ padding: 12 }}>{t.currency} {Number(t.amount).toFixed(2)}</td><td style={{ padding: 12 }}>{formatDate(t.created_at)}</td></tr>)}</tbody>
               <tfoot><tr style={{ background: '#f8fafc', fontWeight: 'bold' }}><td colSpan="3" style={{ padding: 12 }}>SUB-TOTAL ({method})</td><td colSpan="2" style={{ padding: 12 }}>{modeTotal.toFixed(2)}</td></tr></tfoot>
             </table>
+            </div>
           </div>
         );
       })}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from '../../supabase';
+import { supabase } from "@/lib/supabase";
 
 function SubscriptionSandbox() {
   const [institutions, setInstitutions] = useState([]);
@@ -165,7 +165,7 @@ function SubscriptionSandbox() {
 }
 
 const styles = {
-  container: { padding: '32px 20px', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', maxWidth: '800px', margin: '40px auto', fontFamily: 'system-ui, sans-serif', width: '100%', boxSizing: 'border-box' },
+  container: { padding: '32px', background: '#ffffff', borderRadius: '16px', border: '1px solid #e2e8f0', maxWidth: '800px', margin: '40px auto', fontFamily: 'system-ui, sans-serif' },
   title: { margin: '0 0 8px 0', color: '#0f172a' },
   desc: { color: '#64748b', fontSize: '14px', margin: '0 0 24px 0' },
   controlGroup: { marginBottom: '24px' },

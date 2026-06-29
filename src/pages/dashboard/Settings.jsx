@@ -94,10 +94,10 @@ function Settings() {
   };
 
   return (
-    <div style={{ padding: '40px', background: '#f8fafc', minHeight: '100vh', fontFamily: 'system-ui' }}>
+    <div className="page-padding" style={{ background: '#f8fafc', minHeight: '100vh', fontFamily: 'system-ui' }}>
       <h1 style={{ color: '#0f172a', marginBottom: '30px' }}>System Administration</h1>
 
-      <div style={{ marginBottom: '20px', display: 'flex', gap: '10px' }}>
+      <div className="tab-bar" style={{ marginBottom: '20px' }}>
         <button onClick={() => setActiveTab('institution')} style={tabStyle(activeTab === 'institution')}>🏢 Institution Profile</button>
         <button onClick={() => setActiveTab('deceased')} style={tabStyle(activeTab === 'deceased')}>🕊️ Funeral Registry</button>
         <button onClick={() => setActiveTab('access')} style={tabStyle(activeTab === 'access')}>🔑 Access Control</button>
@@ -114,7 +114,7 @@ function Settings() {
       )}
 
       {activeTab === 'deceased' && (
-        <div style={{ display: 'grid', gridTemplateColumns: '350px 1fr', gap: '20px' }}>
+        <div className="grid-sidebar">
           <div style={cardStyle}>
             <h4>Deceased Portrait Update</h4>
             {selected ? (
@@ -127,6 +127,7 @@ function Settings() {
             ) : <p style={{ color: '#94a3b8' }}>Select a funeral record to edit.</p>}
           </div>
           <div style={cardStyle}>
+            <div className="table-wrapper">
             <table style={{ width: '100%', borderCollapse: 'collapse' }}>
               <thead><tr style={{ background: '#f1f5f9' }}>{['Name', 'Status'].map(h => <th key={h} style={{ padding: '10px', textAlign: 'left' }}>{h}</th>)}</tr></thead>
               <tbody>
@@ -138,6 +139,7 @@ function Settings() {
                 ))}
               </tbody>
             </table>
+            </div>
           </div>
         </div>
       )}
@@ -146,7 +148,7 @@ function Settings() {
         <div style={cardStyle}>
           <h3>Assign Family Head to Funeral</h3>
           <p style={{ color: '#64748b', marginBottom: '20px' }}>Select an existing funeral and map it to a registered Funeral Head.</p>
-          <div style={{ display: 'flex', gap: '20px', alignItems: 'center' }}>
+          <div className="flex-row-wrap" style={{ alignItems: 'center' }}>
             <select style={inputStyle} onChange={e => setAssignment({...assignment, funeral_id: e.target.value})}>
               <option value="">Select Funeral</option>
               {funerals.map(f => <option key={f.id} value={f.id}>{f.full_name}</option>)}

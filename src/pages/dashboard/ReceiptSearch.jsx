@@ -101,7 +101,7 @@ function ReceiptSearch() {
             <label style={radioLabel}><input type="radio" name="st" checked={searchType === 'reference'} onChange={() => setSearchType('reference')} /> Reference</label>
           </div>
 
-          <div style={inputRow}>
+          <div className="search-input-row">
             {searchType === 'donor_phone' && (
               <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)} style={selectField}>
                 {internationalCodes.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
@@ -113,7 +113,7 @@ function ReceiptSearch() {
         </form>
 
         {transactions.length > 0 && (
-          <div style={resultsBox}>
+          <div className="table-wrapper" style={resultsBox}>
             <table style={table}>
               <thead><tr><th style={th}>Ref</th><th style={th}>Donor</th><th style={th}>Amount</th><th style={th}>Action</th></tr></thead>
               <tbody>

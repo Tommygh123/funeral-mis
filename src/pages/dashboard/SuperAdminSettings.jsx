@@ -87,7 +87,7 @@ function SuperAdminSettings() {
         {institutions.map(inst => <option key={inst.id} value={inst.id}>{inst.name}</option>)}
       </select>
 
-      <div style={styles.warningBox}>
+      <div className="flex-between-wrap" style={styles.warningBox}>
         <div>
           <h4 style={{ margin: 0, color: '#9f1239' }}>Database Maintenance Engine</h4>
           <p style={{ margin: '4px 0 0 0', fontSize: '13px', color: '#4c0519' }}>
@@ -103,6 +103,7 @@ function SuperAdminSettings() {
         </button>
       </div>
 
+      <div className="table-wrapper">
       <table style={styles.table}>
         <thead>
           <tr style={{ background: '#f8fafc' }}>
@@ -135,6 +136,7 @@ function SuperAdminSettings() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

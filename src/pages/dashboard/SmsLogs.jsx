@@ -39,7 +39,7 @@ function SmsLogs() {
   return (
     <div style={container}>
       <h2 style={title}>SMS Activity Logs</h2>
-      <div style={tableContainer}>
+      <div className="table-wrapper" style={tableContainer}>
         <table style={table}>
           <thead>
             <tr style={thead}>

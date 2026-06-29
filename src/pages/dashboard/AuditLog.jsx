@@ -26,6 +26,7 @@ function AuditLog() {
       <h2 style={styles.title}>📜 System Audit Trail</h2>
       <button onClick={fetchLogs} style={styles.refreshBtn}>🔄 Refresh Logs</button>
       
+      <div className="table-wrapper">
       <table style={styles.table}>
         <thead>
           <tr style={styles.trHead}>
@@ -46,6 +47,7 @@ function AuditLog() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

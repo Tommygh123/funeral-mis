@@ -60,9 +60,9 @@ function AdminDashboard() {
   if (!institution) return <div style={{ padding: '30px' }}>Loading Dashboard...</div>;
 
   return (
-    <div style={{ padding: '30px', fontFamily: 'system-ui, sans-serif' }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '30px' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '20px' }}>
+    <div className="page-padding" style={{ fontFamily: 'system-ui, sans-serif' }}>
+      <div className="flex-between-start" style={{ marginBottom: '30px' }}>
+        <div className="flex-row-wrap" style={{ alignItems: 'center', gap: '20px' }}>
           {institution.logo_url && (
             <img src={institution.logo_url} alt="Logo" style={{ width: '80px', height: '80px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e2e8f0' }} />
           )}
@@ -83,6 +83,7 @@ function AdminDashboard() {
       </div>
 
       <h2 style={{ marginBottom: '20px' }}>Funeral Schedule</h2>
+      <div className="table-wrapper">
       <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff', borderRadius: '8px', overflow: 'hidden' }}>
         <thead>
           <tr style={{ textAlign: 'left', background: '#f1f5f9' }}>
@@ -107,6 +108,7 @@ function AdminDashboard() {
           ))}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

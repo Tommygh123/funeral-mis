@@ -108,8 +108,8 @@ function GetStarted() {
   };
 
   return (
-    <div style={page}>
-      <div style={card}>
+    <div className="auth-page" style={{ background: 'linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%)' }}>
+      <div className="auth-card" style={{ maxWidth: 540, borderRadius: 20, padding: 40, boxShadow: '0 20px 40px rgba(0,0,0,0.08)' }}>
         <div style={header}>
           <h1 style={title}>LegacyCloud</h1>
           <p style={subtitle}>Create your funeral institution account</p>
@@ -154,7 +154,7 @@ function GetStarted() {
 const page = { minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: 'linear-gradient(135deg, #eef2ff 0%, #f8fafc 100%)', padding: 20 };
 const card = { width: '100%', maxWidth: 540, background: '#fff', borderRadius: 20, padding: 40, boxShadow: '0 20px 40px rgba(0,0,0,0.08)' };
 const header = { marginBottom: 20, textAlign: 'center' };
-const title = { margin: 0, color: '#0b1f3a', fontSize: 36, fontWeight: 700 };
+const title = { margin: 0, color: '#0b1f3a', fontSize: 'clamp(24px, 5vw, 36px)', fontWeight: 700 };
 const subtitle = { color: '#64748b', marginTop: 10, fontSize: 16 };
 const trialBanner = { background: '#eff6ff', border: '1px solid #bfdbfe', padding: 16, borderRadius: 12, marginBottom: 25, color: '#1d4ed8', fontWeight: 700, fontSize: 16, textAlign: 'center' };
 const trialText = { marginTop: 6, fontWeight: 500, fontSize: 14, color: '#475569' };

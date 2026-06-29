@@ -76,10 +76,10 @@ function AdminReports() {
   };
 
   return (
-    <div style={{ padding: '24px', background: '#f8fafc', minHeight: '100vh' }}>
+    <div className="page-padding" style={{ background: '#f8fafc', minHeight: '100vh' }}>
       <h2 style={{ color: '#1e293b' }}>📊 Transaction Analytics & Totals</h2>
       
-      <div style={styles.filterBar}>
+      <div className="flex-row-wrap" style={styles.filterBar}>
         <select onChange={(e) => setFilter({ ...filter, inst_id: e.target.value, funeral_id: '' })} style={styles.input}>
           <option value="">-- Select Institution --</option>
           {institutions.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
@@ -92,7 +92,7 @@ function AdminReports() {
       </div>
 
       {Object.keys(totals).length > 0 && (
-        <div style={styles.summaryGrid}>
+        <div className="flex-row-wrap" style={styles.summaryGrid}>
           {Object.entries(totals).map(([cur, amt]) => (
             <div key={cur} style={styles.card}>
               <div style={styles.cardLabel}>{cur} TOTAL</div>
@@ -102,6 +102,7 @@ function AdminReports() {
         </div>
       )}
 
+      <div className="table-wrapper">
       <table style={styles.table}>
         <thead>
           <tr style={{ background: '#34495e', color: '#fff' }}>
@@ -123,6 +124,7 @@ function AdminReports() {
           )}
         </tbody>
       </table>
+      </div>
     </div>
   );
 }

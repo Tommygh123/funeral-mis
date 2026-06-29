@@ -85,15 +85,15 @@ function ReversalManagement() {
   };
 
   return (
-    <div style={{ fontFamily: 'system-ui, sans-serif', maxWidth: '800px', padding: '20px' }}>
+    <div className="form-page" style={{ fontFamily: 'system-ui, sans-serif', maxWidth: 800 }}>
       <h2>Supervisor Entry Reversal Desk</h2>
       
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '20px' }}>
+      <div className="tab-bar" style={{ marginBottom: '20px' }}>
         <button onClick={() => { setSearchMode('reference'); setTransaction(null); }} style={modeButtonStyle(searchMode === 'reference')}>Search by Reference</button>
         <button onClick={() => { setSearchMode('phone'); setTransaction(null); }} style={modeButtonStyle(searchMode === 'phone')}>Search by Phone</button>
       </div>
 
-      <form onSubmit={handleSearch} style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+      <form onSubmit={handleSearch} className="search-input-row" style={{ marginBottom: '24px' }}>
         <input 
           type="text"
           placeholder={searchMode === 'reference' ? "e.g., REC-260610-0011" : "e.g., 244228546"}

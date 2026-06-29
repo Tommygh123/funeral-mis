@@ -107,8 +107,8 @@ function Login() {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#f5f7fb', fontFamily: 'Arial, sans-serif' }}>
-      <div style={{ background: 'white', padding: '40px', borderRadius: '10px', width: '350px', boxShadow: '0 0 10px rgba(0,0,0,0.1)' }}>
+    <div className="auth-page" style={{ background: '#f5f7fb', fontFamily: 'Arial, sans-serif' }}>
+      <div className="auth-card">
         <h2 style={{ textAlign: 'center', margin: '0 0 24px 0', color: '#0f172a' }}>LegacyCloud Login</h2>
         
         <input name="email" type="email" placeholder="Email" value={form.email} onChange={handleChange} style={inputStyle} />

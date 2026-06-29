@@ -73,7 +73,7 @@ function FuneralHeadReports() {
         ))}
       </div>
 
-      <div style={styles.tableCard}>
+      <div className="table-wrapper" style={styles.tableCard}>
         <table style={styles.table}>
           <thead>
             <tr style={styles.thead}>

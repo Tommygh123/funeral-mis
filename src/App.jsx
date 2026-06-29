@@ -7,6 +7,8 @@ import Login from './pages/auth/Login';
 import GetStarted from './pages/auth/GetStarted';
 import ResetPassword from './pages/auth/ResetPassword';
 import Donate from './pages/dashboard/Donate';
+import HomeSubscriptionPage from './pages/subscription/HomeSubscriptionPage'; // Info page for guests
+import SubscriptionPage from './pages/subscription/SubscriptionPage';       // Active management page
 
 // LAYOUTS
 import DashboardLayout from './pages/dashboard/DashboardLayout';
@@ -28,7 +30,7 @@ import UpgradePlans from './pages/UpgradePlans';
 import CreateFuneral from './pages/funerals/CreateFuneral';
 import FuneralList from './pages/funerals/FuneralList';
 import FuneralManagement from './pages/funerals/FuneralManagement';
-import QRGenerator from './pages/dashboard/QRGenerator'; // <-- 1. Import your new page
+import QRGenerator from './pages/dashboard/QRGenerator'; 
 import FuneralHeadDashboard from './pages/dashboard/FuneralHeadDashboard';
 import FuneralHeadReports from './pages/funerals/FuneralHeadReports';
 import CashierDashboard from './pages/dashboard/CashierDashboard';
@@ -38,9 +40,8 @@ import SmsLogs from './pages/dashboard/SmsLogs';
 import SupervisorDashboard from './pages/dashboard/SupervisorDashboard';
 import ViewerDashboard from './pages/dashboard/ViewerDashboard';
 import ReversalManagement from './pages/dashboard/ReversalManagement';
-import SubscriptionPage from './pages/subscription/SubscriptionPage';
 
-// GUARDS & ROUTES
+// GUARDS
 import ProtectedRoute from './routes/ProtectedRoute';
 import GlobalSubscriptionGuard from './pages/guards/GlobalSubscriptionGuard';
 
@@ -52,7 +53,7 @@ function App() {
       <Route path="/login" element={<Login />} />
       <Route path="/get-started" element={<GetStarted />} />
       <Route path="/reset-password" element={<ResetPassword />} />
-      <Route path="/subscription" element={<SubscriptionPage />} />
+      <Route path="/subscription" element={<HomeSubscriptionPage />} />
       <Route path="/donate/:funeralId" element={<Donate />} />
       
       {/* --- PROTECTED ROUTES --- */}
@@ -85,31 +86,18 @@ function App() {
         <Route path="funerals/create" element={<CreateFuneral />} />
         <Route path="funerals" element={<FuneralList />} />
         <Route path="funerals/manage" element={<FuneralManagement />} />
-        <Route path="qr-generator" element={<QRGenerator />} /> {/* <-- 2. Add Route here */}
+        <Route path="qr-generator" element={<QRGenerator />} />
         <Route path="reports" element={<Reports />} />
         <Route path="settings" element={<Settings />} />
       </Route>
 
-      {/* FUNERAL HEAD */}
-      <Route path="/funeralhead" element={
-        <ProtectedRoute allowedRole="FUNERALHEAD">
-          <GlobalSubscriptionGuard>
-            <DashboardLayout role="funeralhead" />
-          </GlobalSubscriptionGuard>
-        </ProtectedRoute>
-      }>
+      {/* FUNERAL HEAD, CASHIER, SUPERVISOR, VIEWER (Omitted similar for brevity) */}
+      <Route path="/funeralhead" element={<ProtectedRoute allowedRole="FUNERALHEAD"><GlobalSubscriptionGuard><DashboardLayout role="funeralhead" /></GlobalSubscriptionGuard></ProtectedRoute>}>
         <Route index element={<FuneralHeadDashboard />} />
         <Route path="reports" element={<FuneralHeadReports />} />
       </Route>
 
-      {/* CASHIER */}
-      <Route path="/cashier" element={
-        <ProtectedRoute allowedRole="CASHIER">
-          <GlobalSubscriptionGuard>
-            <DashboardLayout role="cashier" />
-          </GlobalSubscriptionGuard>
-        </ProtectedRoute>
-      }>
+      <Route path="/cashier" element={<ProtectedRoute allowedRole="CASHIER"><GlobalSubscriptionGuard><DashboardLayout role="cashier" /></GlobalSubscriptionGuard></ProtectedRoute>}>
         <Route index element={<CashierDashboard />} />
         <Route path="donations" element={<DonationEntry />} />
         <Route path="receipts" element={<ReceiptSearch />} />
@@ -117,14 +105,7 @@ function App() {
         <Route path="sms" element={<SmsLogs />} />
       </Route>
 
-      {/* SUPERVISOR */}
-      <Route path="/supervisor" element={
-        <ProtectedRoute allowedRole="SUPERVISOR">
-          <GlobalSubscriptionGuard>
-            <DashboardLayout role="supervisor" />
-          </GlobalSubscriptionGuard>
-        </ProtectedRoute>
-      }>
+      <Route path="/supervisor" element={<ProtectedRoute allowedRole="SUPERVISOR"><GlobalSubscriptionGuard><DashboardLayout role="supervisor" /></GlobalSubscriptionGuard></ProtectedRoute>}>
         <Route index element={<SupervisorDashboard />} />
         <Route path="donations" element={<DonationEntry />} />
         <Route path="receipts" element={<ReceiptSearch />} />
@@ -133,14 +114,7 @@ function App() {
         <Route path="sms" element={<SmsLogs />} />
       </Route>
 
-      {/* VIEWER */}
-      <Route path="/viewer" element={
-        <ProtectedRoute allowedRole="VIEWER">
-          <GlobalSubscriptionGuard>
-            <DashboardLayout role="viewer" />
-          </GlobalSubscriptionGuard>
-        </ProtectedRoute>
-      }>
+      <Route path="/viewer" element={<ProtectedRoute allowedRole="VIEWER"><GlobalSubscriptionGuard><DashboardLayout role="viewer" /></GlobalSubscriptionGuard></ProtectedRoute>}>
         <Route index element={<ViewerDashboard />} />
         <Route path="reports" element={<Reports />} />
       </Route>
