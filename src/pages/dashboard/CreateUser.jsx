@@ -47,6 +47,7 @@ function CreateUser() {
   const getRoleName = (id) => roles.find(r => r.id === id)?.name || '';
 
   const handleSubmit = async () => {
+    // Phone removed from required check
     if (!form.full_name || !form.email || !form.role_id) return alert("Required fields missing.");
 
     setLoading(true);
@@ -57,9 +58,10 @@ function CreateUser() {
         if (authError) throw authError;
         userId = auth.user.id;
         
-        await supabase.from('users').insert([{ id: userId, full_name: form.full_name, email: form.email, phone: form.phone, role_id: form.role_id, institution_id: institutionId, status: 'active' }]);
+        // phone: form.phone || null ensures it saves as NULL if empty
+        await supabase.from('users').insert([{ id: userId, full_name: form.full_name, email: form.email, phone: form.phone || null, role_id: form.role_id, institution_id: institutionId, status: 'active' }]);
       } else {
-        await supabase.from('users').update({ full_name: form.full_name, phone: form.phone, role_id: form.role_id }).eq('id', userId);
+        await supabase.from('users').update({ full_name: form.full_name, phone: form.phone || null, role_id: form.role_id }).eq('id', userId);
       }
 
       // Handle Family Head Assignment
