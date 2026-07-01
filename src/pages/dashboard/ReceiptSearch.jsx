@@ -49,6 +49,7 @@ function ReceiptSearch() {
       setLoading(true);
       setSelectedReceipt(null);
 
+      // 1. Fetch transactions
       let query = supabase
         .from('transactions')
         .select(`*, funerals ( full_name, photo_url, institutions ( name, phone, logo_url ) )`)
@@ -58,11 +59,20 @@ function ReceiptSearch() {
       else if (searchType === 'donor_phone') query = query.eq('donor_phone', finalQuery);
       else if (searchType === 'reference') query = query.eq('reference', finalQuery);
 
-      const { data, error } = await query.order('created_at', { ascending: false });
-      if (error) throw error;
+      const { data: txData, error: txError } = await query.order('created_at', { ascending: false });
+      if (txError) throw txError;
 
-      if (!data || data.length === 0) alert("No transactions found matching your criteria.");
-      setTransactions(data || []);
+      // 2. Fetch voided references
+      const { data: voidedData, error: voidedError } = await supabase.from('voided_transactions').select('reference');
+      if (voidedError) throw voidedError;
+
+      const voidedRefs = new Set(voidedData.map(v => v.reference));
+
+      // 3. Filter out voided
+      const filtered = (txData || []).filter(tx => !voidedRefs.has(tx.reference));
+
+      if (filtered.length === 0) alert("No valid transactions found.");
+      setTransactions(filtered);
     } catch (err) {
       console.error(err);
       alert(err.message);
@@ -90,6 +100,13 @@ function ReceiptSearch() {
     }
   };
 
+  const groupedTransactions = transactions.reduce((acc, tx) => {
+    const key = tx.funerals?.full_name || 'Unassigned/General';
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(tx);
+    return acc;
+  }, {});
+
   return (
     <div style={container}>
       <div className="no-print" style={searchSection}>
@@ -101,7 +118,7 @@ function ReceiptSearch() {
             <label style={radioLabel}><input type="radio" name="st" checked={searchType === 'reference'} onChange={() => setSearchType('reference')} /> Reference</label>
           </div>
 
-          <div className="search-input-row">
+          <div style={inputRow}>
             {searchType === 'donor_phone' && (
               <select value={countryCode} onChange={(e) => setCountryCode(e.target.value)} style={selectField}>
                 {internationalCodes.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
@@ -113,27 +130,33 @@ function ReceiptSearch() {
         </form>
 
         {transactions.length > 0 && (
-          <div className="table-wrapper" style={resultsBox}>
-            <table style={table}>
-              <thead><tr><th style={th}>Ref</th><th style={th}>Donor</th><th style={th}>Amount</th><th style={th}>Action</th></tr></thead>
-              <tbody>
-                {transactions.map((tx) => (
-                  <tr key={tx.id}>
-                    <td style={td}>{tx.reference}</td>
-                    <td style={td}>{tx.donor_name}</td>
-                    <td style={td}>{tx.currency} {Number(tx.amount).toFixed(2)}</td>
-                    <td style={td}><button onClick={() => setSelectedReceipt(tx)} style={viewBtn}>View</button></td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={resultsBox}>
+            {Object.entries(groupedTransactions).map(([funeralName, txList]) => (
+              <div key={funeralName} style={{ marginBottom: '20px' }}>
+                <h4 style={{ margin: '15px 0 5px 0', color: '#1f2937', borderBottom: '2px solid #e5e7eb', paddingBottom: '5px' }}>
+                  {funeralName}
+                </h4>
+                <table style={table}>
+                  <thead><tr><th style={th}>Ref</th><th style={th}>Donor</th><th style={th}>Amount</th><th style={th}>Action</th></tr></thead>
+                  <tbody>
+                    {txList.map((tx) => (
+                      <tr key={tx.id}>
+                        <td style={td}>{tx.reference}</td>
+                        <td style={td}>{tx.donor_name}</td>
+                        <td style={td}>{tx.currency} {Number(tx.amount).toFixed(2)}</td>
+                        <td style={td}><button onClick={() => setSelectedReceipt(tx)} style={viewBtn}>View</button></td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            ))}
           </div>
         )}
       </div>
 
       {selectedReceipt && (
         <div style={receiptCanvas}>
-           {/* ACTION BAR */}
            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', marginBottom: '20px', justifyContent: 'center' }}>
              <button onClick={() => window.print()} style={printActionBtn}>🖨️ Print</button>
              <button onClick={handleVoidEntry} style={voidActionBtn}>❌ Mark as Void</button>
@@ -168,7 +191,6 @@ function ReceiptSearch() {
   );
 }
 
-// Styles
 const container = { padding: '20px', maxWidth: '500px', margin: '0 auto' };
 const searchSection = { background: '#fff', padding: '24px', borderRadius: '12px', border: '1px solid #e5e7eb', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' };
 const title = { margin: '0 0 16px 0', fontSize: '20px', color: '#1f2937' };
