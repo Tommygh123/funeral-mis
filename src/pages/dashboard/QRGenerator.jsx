@@ -1,8 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { supabase } from '../../supabase';
 import { QRCodeCanvas } from 'qrcode.react';
+import { useToast } from '../../components/ui/ToastProvider';
 
 function QRGenerator() {
+  const notifications = useToast();
   const [funerals, setFunerals] = useState([]);
   const [selectedFuneral, setSelectedFuneral] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -13,12 +15,40 @@ function QRGenerator() {
 
   const fetchFunerals = async () => {
     setLoading(true);
-    const { data } = await supabase
-      .from('funerals')
-      .select('id, full_name')
-      .eq('status', 'active');
-    setFunerals(data || []);
-    setLoading(false);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) throw new Error('Authentication required.');
+
+      const { data: profile, error: profileError } = await supabase
+        .from('users')
+        .select('institution_id')
+        .eq('id', user.id)
+        .single();
+      if (profileError) throw profileError;
+      if (!profile?.institution_id) throw new Error('Institution assignment was not found.');
+
+      const { data, error } = await supabase
+        .from('funerals')
+        .select('id, full_name')
+        .eq('institution_id', profile.institution_id)
+        .eq('status', 'active')
+        .order('full_name');
+      if (error) throw error;
+
+      const availableFunerals = data || [];
+      setFunerals(availableFunerals);
+      setSelectedFuneral((current) => (
+        availableFunerals.find((funeral) => funeral.id === current?.id)
+        || availableFunerals[0]
+        || null
+      ));
+    } catch (error) {
+      setFunerals([]);
+      setSelectedFuneral(null);
+      notifications.error(`Unable to load funerals: ${error.message}`);
+    } finally {
+      setLoading(false);
+    }
   };
 
   // Generates the public donation URL
@@ -45,8 +75,13 @@ function QRGenerator() {
     document.body.removeChild(downloadLink);
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text).then(() => alert("Link copied!"));
+  const copyToClipboard = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      notifications.success('Donation link copied.');
+    } catch {
+      notifications.error('Unable to copy the link. Select and copy it manually.');
+    }
   };
 
   if (loading) return <div style={styles.center}>Loading funerals...</div>;
@@ -120,7 +155,7 @@ function QRGenerator() {
               </div>
             </div>
           ) : (
-            <div style={styles.placeholder}>Select a funeral from the list to generate its QR code and link.</div>
+            <div style={styles.placeholder}>{funerals.length === 0 ? 'No active funerals are available for this institution.' : 'Select a funeral from the list to generate its QR code and link.'}</div>
           )}
         </div>
       </div>

@@ -1,127 +1,122 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../../supabase';
+import { useToast } from '../../components/ui/ToastProvider';
+
+const emptyForm = { id: null, full_name: '', username: '', phone: '', password: '', role_id: '', funeral_id: '' };
 
 function CreateUser() {
+  const notifications = useToast();
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
   const [funerals, setFunerals] = useState([]);
-  const [form, setForm] = useState({ id: null, full_name: '', email: '', phone: '', password: '', role_id: '', funeral_id: '' });
+  const [form, setForm] = useState(emptyForm);
   const [loading, setLoading] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [institutionId, setInstitutionId] = useState(null);
 
-  useEffect(() => {
-    getInstitutionFromSession();
-    fetchRoles();
+  const fetchUsers = useCallback(async (id) => {
+    const { data, error } = await supabase.from('users').select('id, full_name, username, phone, role_id, roles(name)').eq('institution_id', id).order('full_name');
+    if (error) notifications.error(error.message); else setUsers(data || []);
+  }, [notifications]);
+
+  const fetchFunerals = useCallback(async (id) => {
+    const { data } = await supabase.from('funerals').select('id, full_name').eq('institution_id', id);
+    setFunerals(data || []);
   }, []);
 
   useEffect(() => {
-    if (institutionId) {
-      fetchUsers();
-      fetchFunerals();
-    }
-  }, [institutionId]);
+    const initialize = async () => {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+      const [{ data: profile }, { data: roleData }] = await Promise.all([
+        supabase.from('users').select('institution_id').eq('id', user.id).single(),
+        supabase.from('roles').select('id, name'),
+      ]);
+      if (profile?.institution_id) {
+        setInstitutionId(profile.institution_id);
+        fetchUsers(profile.institution_id);
+        fetchFunerals(profile.institution_id);
+      }
+      setRoles((roleData || []).filter((role) => !['SUPERADMIN', 'ADMIN'].includes(String(role.name).toUpperCase())));
+    };
+    initialize();
+  }, [fetchFunerals, fetchUsers]);
 
-  const getInstitutionFromSession = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (!user) return;
-    const { data } = await supabase.from('users').select('institution_id').eq('id', user.id).single();
-    if (data?.institution_id) setInstitutionId(data.institution_id);
-  };
+  const getRoleName = (id) => roles.find((role) => role.id === id)?.name || '';
 
-  const fetchRoles = async () => {
-    const { data } = await supabase.from('roles').select('id, name');
-    setRoles((data || []).filter(r => r.name.toLowerCase() !== 'superadmin'));
-  };
-
-  const fetchFunerals = async () => {
-    const { data } = await supabase.from('funerals').select('id, full_name').eq('institution_id', institutionId);
-    setFunerals(data || []);
-  };
-
-  const fetchUsers = async () => {
-    const { data } = await supabase.from('users').select('*, roles(name)').eq('institution_id', institutionId);
-    setUsers(data || []);
-  };
-
-  const getRoleName = (id) => roles.find(r => r.id === id)?.name || '';
-
-  const handleSubmit = async () => {
-    // Phone removed from required check
-    if (!form.full_name || !form.email || !form.role_id) return alert("Required fields missing.");
+  const handleSubmit = async (event) => {
+    event.preventDefault();
+    if (!form.full_name.trim() || !form.username.trim() || !form.role_id) return notifications.warning('Full name, username, and role are required.');
+    if (!editMode && form.password.length < 8) return notifications.warning('Password must be at least 8 characters.');
 
     setLoading(true);
     try {
       let userId = form.id;
       if (!editMode) {
-        const { data: auth, error: authError } = await supabase.auth.signUp({ email: form.email, password: form.password });
-        if (authError) throw authError;
-        userId = auth.user.id;
-        
-        // phone: form.phone || null ensures it saves as NULL if empty
-        await supabase.from('users').insert([{ id: userId, full_name: form.full_name, email: form.email, phone: form.phone || null, role_id: form.role_id, institution_id: institutionId, status: 'active' }]);
+        const { data, error } = await supabase.functions.invoke('admin-create-user', {
+          body: {
+            fullName: form.full_name.trim(), username: form.username.trim().toLowerCase(),
+            phone: form.phone.trim(), password: form.password, roleId: form.role_id,
+          },
+        });
+        if (error) throw error;
+        if (!data?.success) throw new Error(data?.message || 'Unable to create user.');
+        userId = data.userId;
+        notifications.success(data.message);
       } else {
-        await supabase.from('users').update({ full_name: form.full_name, phone: form.phone || null, role_id: form.role_id }).eq('id', userId);
+        const { error } = await supabase.from('users').update({ full_name: form.full_name.trim(), phone: form.phone.trim() || null, role_id: form.role_id }).eq('id', userId).eq('institution_id', institutionId);
+        if (error) throw error;
+        notifications.success('User profile updated successfully.');
       }
 
-      // Handle Family Head Assignment
-      if (getRoleName(form.role_id) === 'FAMILYHEAD' && form.funeral_id) {
-        await supabase.from('user_funeral_access').upsert({ user_id: userId, funeral_id: form.funeral_id });
+      if (String(getRoleName(form.role_id)).toUpperCase() === 'FAMILYHEAD' && form.funeral_id) {
+        const { error } = await supabase.from('user_funeral_access').upsert({ user_id: userId, funeral_id: form.funeral_id });
+        if (error) throw error;
       }
 
-      setForm({ id: null, full_name: '', email: '', phone: '', password: '', role_id: '', funeral_id: '' });
+      setForm(emptyForm);
       setEditMode(false);
-      fetchUsers();
-      alert("Operation successful!");
-    } catch (err) { alert(err.message); } finally { setLoading(false); }
+      await fetchUsers(institutionId);
+    } catch (error) {
+      notifications.error(error.message || 'Unable to save user.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const editUser = (user) => {
+    setForm({ id: user.id, full_name: user.full_name, username: user.username, phone: user.phone || '', password: '', role_id: user.role_id || '', funeral_id: '' });
+    setEditMode(true);
   };
 
   return (
-    <div style={{ padding: '20px', maxWidth: '900px', margin: '0 auto', fontFamily: 'system-ui' }}>
-      <div style={{ background: '#fff', padding: '25px', borderRadius: '12px', marginBottom: '30px', boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
-        <h2>{editMode ? "Edit User" : "Create New User"}</h2>
+    <div style={{ padding: 20, maxWidth: 900, margin: '0 auto', fontFamily: 'system-ui' }}>
+      <form onSubmit={handleSubmit} style={{ background: '#fff', padding: 25, borderRadius: 12, marginBottom: 30, boxShadow: '0 1px 3px rgba(0,0,0,0.1)' }}>
+        <h2>{editMode ? 'Edit User' : 'Create New User'}</h2>
         <div className="grid-form-2">
-          <input placeholder="Full Name" value={form.full_name} onChange={e => setForm({...form, full_name: e.target.value})} style={inputStyle} />
-          <input placeholder="Email" value={form.email} onChange={e => setForm({...form, email: e.target.value})} disabled={editMode} style={inputStyle} />
-          <input placeholder="Phone" value={form.phone} onChange={e => setForm({...form, phone: e.target.value})} style={inputStyle} />
-          {!editMode && <input type="password" placeholder="Password" value={form.password} onChange={e => setForm({...form, password: e.target.value})} style={inputStyle} />}
-          
-          <select value={form.role_id} onChange={e => setForm({...form, role_id: e.target.value})} style={inputStyle}>
-            <option value="">Select Role</option>
-            {roles.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-          </select>
-
-          {getRoleName(form.role_id) === 'FAMILYHEAD' && (
-            <select value={form.funeral_id} onChange={e => setForm({...form, funeral_id: e.target.value})} style={inputStyle}>
-              <option value="">Select Funeral to Manage</option>
-              {funerals.map(f => <option key={f.id} value={f.id}>{f.full_name}</option>)}
-            </select>
-          )}
+          <input placeholder="Full Name" value={form.full_name} onChange={(e) => setForm({ ...form, full_name: e.target.value })} style={inputStyle} />
+          <input placeholder="Unique Username" autoComplete="off" value={form.username} onChange={(e) => setForm({ ...form, username: e.target.value.toLowerCase() })} disabled={editMode} style={inputStyle} />
+          <input placeholder="Phone (optional)" value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} style={inputStyle} />
+          {!editMode && <input type="password" autoComplete="new-password" placeholder="Password (minimum 8 characters)" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} style={inputStyle} />}
+          <select value={form.role_id} onChange={(e) => setForm({ ...form, role_id: e.target.value })} style={inputStyle}><option value="">Select Role</option>{roles.map((role) => <option key={role.id} value={role.id}>{role.name}</option>)}</select>
+          {String(getRoleName(form.role_id)).toUpperCase() === 'FAMILYHEAD' && <select value={form.funeral_id} onChange={(e) => setForm({ ...form, funeral_id: e.target.value })} style={inputStyle}><option value="">Select Funeral to Manage</option>{funerals.map((funeral) => <option key={funeral.id} value={funeral.id}>{funeral.full_name}</option>)}</select>}
         </div>
-        <button onClick={handleSubmit} style={btnStyle}>{loading ? "Processing..." : "Save User"}</button>
-      </div>
+        <button type="submit" disabled={loading} style={btnStyle}>{loading ? 'Processing...' : editMode ? 'Save Changes' : 'Create Username Account'}</button>
+        {editMode && <button type="button" onClick={() => { setForm(emptyForm); setEditMode(false); }} style={cancelStyle}>Cancel</button>}
+      </form>
 
-      <div className="table-wrapper">
-      <table style={{ width: '100%', borderCollapse: 'collapse', background: '#fff' }}>
-        <thead><tr style={{ background: '#f1f5f9', textAlign: 'left' }}><th style={thStyle}>Name</th><th style={thStyle}>Role</th><th style={thStyle}>Action</th></tr></thead>
-        <tbody>
-          {users.map(u => (
-            <tr key={u.id} style={{ borderBottom: '1px solid #e2e8f0' }}>
-              <td style={tdStyle}>{u.full_name}</td>
-              <td style={tdStyle}>{getRoleName(u.role_id)}</td>
-              <td style={tdStyle}><button onClick={() => { setForm({...u, password: ''}); setEditMode(true); }} style={{color: '#2563eb', border: 'none', background: 'none', cursor: 'pointer'}}>Edit</button></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-      </div>
+      <div className="table-wrapper"><table><thead><tr><th style={thStyle}>Name</th><th style={thStyle}>Username</th><th style={thStyle}>Role</th><th style={thStyle}>Action</th></tr></thead><tbody>
+        {users.map((user) => <tr key={user.id}><td style={tdStyle}>{user.full_name}</td><td style={tdStyle}><strong>{user.username}</strong></td><td style={tdStyle}>{user.roles?.name || getRoleName(user.role_id)}</td><td style={tdStyle}><button type="button" onClick={() => editUser(user)} style={editStyle}>Edit</button></td></tr>)}
+      </tbody></table></div>
     </div>
   );
 }
 
-const inputStyle = { padding: '10px', borderRadius: '6px', border: '1px solid #cbd5e1' };
-const btnStyle = { padding: '12px 20px', background: '#2563eb', color: '#fff', border: 'none', borderRadius: '6px', cursor: 'pointer', marginTop: '15px' };
-const thStyle = { padding: '12px', fontSize: '0.85rem', textTransform: 'uppercase' };
-const tdStyle = { padding: '12px' };
+const inputStyle = { padding: 10, borderRadius: 6, border: '1px solid #cbd5e1' };
+const btnStyle = { padding: '12px 20px', background: '#2563eb', color: '#fff', border: 0, borderRadius: 6, cursor: 'pointer', marginTop: 15 };
+const cancelStyle = { ...btnStyle, marginLeft: 10, background: '#64748b' };
+const thStyle = { padding: 12, fontSize: '0.85rem', textTransform: 'uppercase', textAlign: 'left' };
+const tdStyle = { padding: 12, borderBottom: '1px solid #e2e8f0' };
+const editStyle = { color: '#2563eb', border: 0, background: 'none', cursor: 'pointer' };
 
 export default CreateUser;

@@ -1,6 +1,12 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useNavigate, Outlet, useLocation } from 'react-router-dom';
 import { supabase } from '../../supabase';
+import {
+  LuLayoutDashboard, LuSettings, LuMessageSquare, LuCreditCard,
+  LuFileText, LuUsers, LuUserPlus, LuHouse, LuReceipt,
+  LuRefreshCcw, LuTerminal, LuQrCode, LuLogOut, LuMenu,
+  LuX, LuCircleDollarSign, LuShieldCheck
+} from 'react-icons/lu';
 
 const MENU_BY_ROLE = {
   superadmin: [
@@ -44,6 +50,24 @@ const MENU_BY_ROLE = {
 };
 
 const INST_CACHE_KEY = 'legacy_cloud_inst_context';
+
+const getMenuIcon = (label) => {
+  const value = label.toLowerCase();
+  if (value.includes('dashboard') || value.includes('overview') || value.includes('platform')) return LuLayoutDashboard;
+  if (value.includes('create user')) return LuUserPlus;
+  if (value.includes('manage user')) return LuUsers;
+  if (value.includes('funeral') || value.includes('family')) return LuHouse;
+  if (value.includes('donation')) return LuCircleDollarSign;
+  if (value.includes('receipt')) return LuReceipt;
+  if (value.includes('reversal') || value.includes('reverse')) return LuRefreshCcw;
+  if (value.includes('sms')) return LuMessageSquare;
+  if (value.includes('subscription') || value.includes('upgrade')) return LuCreditCard;
+  if (value.includes('report')) return LuFileText;
+  if (value.includes('setting')) return LuSettings;
+  if (value.includes('qr')) return LuQrCode;
+  if (value.includes('audit')) return LuShieldCheck;
+  return LuTerminal;
+};
 
 function DashboardLayout({ role }) {
   const navigate = useNavigate();
@@ -115,7 +139,7 @@ function DashboardLayout({ role }) {
           onClick={() => setSidebarOpen((open) => !open)}
           aria-label={sidebarOpen ? 'Close menu' : 'Open menu'}
         >
-          {sidebarOpen ? '✕' : '☰'}
+          {sidebarOpen ? <LuX aria-hidden="true" /> : <LuMenu aria-hidden="true" />}
         </button>
         <span style={{ fontWeight: 600, fontSize: '14px' }}>{institution.name}</span>
       </div>
@@ -137,6 +161,7 @@ function DashboardLayout({ role }) {
           <nav style={styles.menu}>
             {menuItems.map((item) => {
               const isActive = location.pathname === item.path;
+              const MenuIcon = getMenuIcon(item.label);
               return (
                 <button
                   key={item.path}
@@ -144,14 +169,16 @@ function DashboardLayout({ role }) {
                   onClick={() => handleNav(item.path)}
                   className={`sidebar-nav-btn ${isActive ? 'active' : ''}`}
                 >
-                  {item.label}
+                  <MenuIcon className="sidebar-nav-icon" aria-hidden="true" />
+                  <span>{item.label}</span>
                 </button>
               );
             })}
           </nav>
         </div>
         <button type="button" className="sidebar-logout-btn" onClick={handleLogout}>
-          Close Session
+          <LuLogOut className="sidebar-nav-icon" aria-hidden="true" />
+          <span>Close Session</span>
         </button>
       </aside>
 

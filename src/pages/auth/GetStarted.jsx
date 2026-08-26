@@ -1,13 +1,15 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase';
+import { useToast } from '../../components/ui/ToastProvider';
 
 function GetStarted() {
   const navigate = useNavigate();
+  const notifications = useToast();
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
-    name: '', email: '', password: '', phone: '', location: '', logo: null
+    name: '', username: '', password: '', phone: '', location: '', logo: null
   });
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -23,16 +25,11 @@ function GetStarted() {
 
   const handleSubmit = async () => {
     try {
-      if (!form.name.trim() || !form.email.trim() || form.password.length < 6) 
-        return alert('Please fill in all fields (Password min 6 chars)');
+      if (!form.name.trim() || !form.username.trim() || form.password.length < 8)
+        return notifications.warning('Institution name, username, and a password of at least 8 characters are required.');
 
       setLoading(true);
-      const email = form.email.toLowerCase().trim();
       const phone = normalizePhone(form.phone);
-
-      // Check Duplicate
-      const { data: existing } = await supabase.from('institutions').select('id').eq('email', email).maybeSingle();
-      if (existing) throw new Error('Institution email already exists');
 
       // Logo Upload
       let logoUrl = null;
@@ -42,66 +39,23 @@ function GetStarted() {
         if (!uploadErr) logoUrl = supabase.storage.from('institution-logos').getPublicUrl(fileName).data.publicUrl;
       }
 
-      // Create Auth
-      const { data: authData, error: authErr } = await supabase.auth.signUp({ email, password: form.password });
-      if (authErr) throw authErr;
-
-      // Calculate Trial Expiry (14 days)
-      const now = new Date();
-      const expiry = new Date();
-      expiry.setDate(now.getDate() + 14);
-
-      // Create Institution
-      const { data: institution, error: instErr } = await supabase
-        .from('institutions')
-        .insert([{
-          name: form.name,
-          email,
+      const { data, error } = await supabase.functions.invoke('register-institution', {
+        body: {
+          institutionName: form.name.trim(),
+          username: form.username.trim().toLowerCase(),
+          password: form.password,
           phone,
-          location: form.location,
-          logo_url: logoUrl,
-          subscription_plan: 'BASIC',
-          subscription_status: 'active', // Changed to active
-          funeral_limit_per_month: 1,
-          subscription_end_date: expiry.toISOString()
-        }])
-        .select()
-        .single();
+          location: form.location.trim(),
+          logoUrl,
+        },
+      });
+      if (error) throw error;
+      if (!data?.success) throw new Error(data?.message || 'Unable to create institution.');
 
-      if (instErr) throw instErr;
-
-      // Initialize Subscription Record (Including all NON-NULL fields)
-      const { error: subErr } = await supabase.from('subscriptions').insert([{
-        institution_id: institution.id,
-        plan_name: 'free_trial',
-        billing_market: 'local',
-        amount: 0,
-        currency: 'GHS',
-        max_funerals: 1, // Added to fix the constraint violation
-        status: 'active', // Changed to active
-        starts_at: now.toISOString(),
-        expires_at: expiry.toISOString()
-      }]);
-      if (subErr) throw subErr;
-
-      // Set Admin Role
-      const { data: role } = await supabase.from('roles').select('id').eq('name', 'ADMIN').single();
-
-      // Create Profile
-      await supabase.from('users').insert([{
-        id: authData.user.id,
-        institution_id: institution.id,
-        full_name: form.name,
-        email,
-        phone,
-        role_id: role.id,
-        status: 'active'
-      }]);
-
-      alert('Institution created successfully.\n\n14-day free trial activated with 1 funeral capacity.');
+      notifications.success(data.message);
       navigate('/login');
     } catch (err) {
-      alert(err.message);
+      notifications.error(err.message || 'Unable to create institution.');
     } finally {
       setLoading(false);
     }
@@ -124,11 +78,11 @@ function GetStarted() {
         <label style={label}>Institution Name</label>
         <input name="name" placeholder="Enter institution name" onChange={handleChange} style={input} />
 
-        <label style={label}>Admin Email</label>
-        <input type="email" name="email" placeholder="example@email.com" onChange={handleChange} style={input} />
+        <label style={label}>Admin Username</label>
+        <input name="username" autoComplete="username" placeholder="Choose a globally unique username" onChange={handleChange} style={input} />
 
         <label style={label}>Password</label>
-        <input type="password" name="password" placeholder="Minimum 6 characters" onChange={handleChange} style={input} />
+        <input type="password" name="password" autoComplete="new-password" placeholder="Minimum 8 characters" onChange={handleChange} style={input} />
 
         <label style={label}>Phone Number</label>
         <input name="phone" placeholder="+233xxxxxxxxx" onChange={handleChange} style={input} />
