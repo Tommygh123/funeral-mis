@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase';
 import { useToast } from '../../components/ui/ToastProvider';
+import PasswordInput from '../../components/ui/PasswordInput';
 
 function GetStarted() {
   const navigate = useNavigate();
@@ -9,7 +10,7 @@ function GetStarted() {
   const [loading, setLoading] = useState(false);
 
   const [form, setForm] = useState({
-    name: '', username: '', password: '', phone: '', location: '', logo: null
+    name: '', adminName: '', email: '', password: '', phone: '', location: '', logo: null
   });
 
   const handleChange = (e) => setForm({ ...form, [e.target.name]: e.target.value });
@@ -25,8 +26,8 @@ function GetStarted() {
 
   const handleSubmit = async () => {
     try {
-      if (!form.name.trim() || !form.username.trim() || form.password.length < 8)
-        return notifications.warning('Institution name, username, and a password of at least 8 characters are required.');
+      if (!form.name.trim() || !form.adminName.trim() || !form.email.trim() || form.password.length < 8)
+        return notifications.warning('Institution name, administrator name, email, and a password of at least 8 characters are required.');
 
       setLoading(true);
       const phone = normalizePhone(form.phone);
@@ -42,7 +43,8 @@ function GetStarted() {
       const { data, error } = await supabase.functions.invoke('register-institution', {
         body: {
           institutionName: form.name.trim(),
-          username: form.username.trim().toLowerCase(),
+          fullName: form.adminName.trim(),
+          email: form.email.trim().toLowerCase(),
           password: form.password,
           phone,
           location: form.location.trim(),
@@ -78,11 +80,14 @@ function GetStarted() {
         <label style={label}>Institution Name</label>
         <input name="name" placeholder="Enter institution name" onChange={handleChange} style={input} />
 
-        <label style={label}>Admin Username</label>
-        <input name="username" autoComplete="username" placeholder="Choose a globally unique username" onChange={handleChange} style={input} />
+        <label style={label}>Administrator Full Name</label>
+        <input name="adminName" autoComplete="name" placeholder="Enter administrator full name" onChange={handleChange} style={input} />
+
+        <label style={label}>Administrator Email</label>
+        <input type="email" name="email" autoComplete="email" placeholder="admin@example.com" onChange={handleChange} style={input} />
 
         <label style={label}>Password</label>
-        <input type="password" name="password" autoComplete="new-password" placeholder="Minimum 8 characters" onChange={handleChange} style={input} />
+        <PasswordInput name="password" autoComplete="new-password" placeholder="Minimum 8 characters" onChange={handleChange} style={input} />
 
         <label style={label}>Phone Number</label>
         <input name="phone" placeholder="+233xxxxxxxxx" onChange={handleChange} style={input} />

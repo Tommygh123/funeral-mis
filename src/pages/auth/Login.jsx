@@ -2,36 +2,31 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase';
 import { useToast } from '../../components/ui/ToastProvider';
+import PasswordInput from '../../components/ui/PasswordInput';
 
 function Login() {
   const navigate = useNavigate();
   const notifications = useToast();
-  const [form, setForm] = useState({ username: '', password: '' });
+  const [form, setForm] = useState({ email: '', password: '' });
   const [loading, setLoading] = useState(false);
 
   const handleLogin = async (event) => {
     event.preventDefault();
-    const username = form.username.trim().toLowerCase();
-    if (!username || !form.password) return notifications.warning('Please enter username and password.');
+    const email = form.email.trim().toLowerCase();
+    if (!email || !form.password) return notifications.warning('Please enter email and password.');
 
     setLoading(true);
     try {
-      const { data, error } = await supabase.functions.invoke('username-login', {
-        body: { username, password: form.password },
+      const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
+        email,
+        password: form.password,
       });
-      if (error) throw error;
-      if (!data?.success || !data.access_token || !data.refresh_token) throw new Error(data?.message || 'Invalid username or password.');
-
-      const { data: sessionData, error: sessionError } = await supabase.auth.setSession({
-        access_token: data.access_token,
-        refresh_token: data.refresh_token,
-      });
-      if (sessionError || !sessionData.user) throw sessionError || new Error('Unable to start session.');
+      if (authError || !authData?.user) throw authError || new Error('Invalid email or password.');
 
       const { data: profile, error: profileError } = await supabase
         .from('users')
         .select('status, roles(name)')
-        .eq('id', sessionData.user.id)
+        .eq('id', authData.user.id)
         .single();
       if (profileError) throw profileError;
       if (profile.status !== 'active') {
@@ -48,7 +43,7 @@ function Login() {
       navigate(routes[role] || '/', { replace: true });
     } catch (error) {
       console.error('LOGIN ERROR:', error);
-      notifications.error('Invalid username or password, or account access is disabled.');
+      notifications.error(error?.message || 'Invalid email or password, or account access is disabled.');
     } finally {
       setLoading(false);
     }
@@ -58,13 +53,14 @@ function Login() {
     <div className="auth-page" style={{ background: '#f5f7fb', fontFamily: 'Arial, sans-serif' }}>
       <form className="auth-card" onSubmit={handleLogin}>
         <h2 style={{ textAlign: 'center', margin: '0 0 24px', color: '#0f172a' }}>LegacyCloud Login</h2>
-        <input name="username" type="text" autoComplete="username" placeholder="Username" value={form.username}
-          onChange={(event) => setForm({ ...form, username: event.target.value })} style={inputStyle} />
-        <input name="password" type="password" autoComplete="current-password" placeholder="Password" value={form.password}
-          onChange={(event) => setForm({ ...form, password: event.target.value })} style={inputStyle} />
+        <input name="email" type="email" autoComplete="email" placeholder="Email address" value={form.email}
+          onChange={(event) => setForm({ ...form, email: event.target.value })} style={inputStyle} />
+        <PasswordInput name="password" autoComplete="current-password" placeholder="Password" value={form.password}
+          onChange={(event) => setForm({ ...form, password: event.target.value })} style={inputStyle} wrapperStyle={{ marginBottom: 15 }} />
         <button type="submit" disabled={loading} style={buttonStyle}>{loading ? 'Logging in...' : 'Login'}</button>
-        <p style={{ marginTop: 15, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
-          Contact your institution administrator if your password must be reset.
+        <button type="button" onClick={() => navigate('/forgot-password')} style={linkButton}>Forgot password?</button>
+        <p style={{ marginTop: 14, textAlign: 'center', color: '#64748b', fontSize: 13 }}>
+          New institution? <span onClick={() => navigate('/get-started')} style={{ color: '#2563eb', cursor: 'pointer', fontWeight: 600 }}>Get Started</span>
         </p>
       </form>
     </div>
@@ -72,6 +68,7 @@ function Login() {
 }
 
 const inputStyle = { width: '100%', padding: 12, marginBottom: 15, boxSizing: 'border-box', borderRadius: 6, border: '1px solid #cbd5e1' };
+const linkButton = { display: 'block', width: '100%', border: 0, background: 'transparent', color: '#2563eb', cursor: 'pointer', fontWeight: 600, textAlign: 'center' };
 const buttonStyle = { width: '100%', padding: 14, background: '#2563eb', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 15 };
 
 export default Login;

@@ -1,13 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../supabase';
+import { useToast } from '../../components/ui/ToastProvider';
+import PasswordInput from '../../components/ui/PasswordInput';
 
 function ResetPassword() {
   const navigate = useNavigate();
+  const notifications = useToast();
 
-  // State for Requesting Reset
-  const [email, setEmail] = useState('');
-  
   // State for Updating Password
   const [form, setForm] = useState({ password: '', confirmPassword: '' });
   const [loading, setLoading] = useState(false);
@@ -35,25 +35,6 @@ function ResetPassword() {
   }, []);
 
   // =========================
-  // REQUEST RESET EMAIL
-  // =========================
-  const handleRequestReset = async (e) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
-      });
-      if (error) throw error;
-      alert("Check your email for the reset link!");
-    } catch (err) {
-      alert(err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // =========================
   // UPDATE PASSWORD
   // =========================
   const handleUpdatePassword = async () => {
@@ -65,10 +46,10 @@ function ResetPassword() {
       const { error } = await supabase.auth.updateUser({ password: form.password });
       if (error) throw error;
 
-      alert("Password updated successfully!");
+      notifications.success('Password updated successfully. You can now log in.');
       navigate('/login');
     } catch (err) {
-      alert(err.message);
+      notifications.error(err.message);
     } finally {
       setLoading(false);
     }
@@ -81,31 +62,19 @@ function ResetPassword() {
         <h1>{isRecovery ? 'Set New Password' : 'Reset Password'}</h1>
 
         {!isRecovery ? (
-          /* FORM TO REQUEST EMAIL */
-          <form onSubmit={handleRequestReset}>
-            <p>Enter your email to receive a reset link.</p>
-            <input
-              type="email"
-              placeholder="Email address"
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              style={{ width: '100%', padding: 12, marginBottom: 15, boxSizing: 'border-box' }}
-            />
-            <button disabled={loading} style={{ width: '100%', padding: 14, background: '#2563eb', color: 'white', border: 'none', cursor: 'pointer' }}>
-              {loading ? 'Sending...' : 'Send Reset Link'}
-            </button>
-          </form>
+          <div>
+            <p>This reset link is missing, invalid, or expired.</p>
+            <button onClick={() => navigate('/forgot-password')} style={{ width: '100%', padding: 14, background: '#2563eb', color: 'white', border: 'none', cursor: 'pointer' }}>Request a New Reset Link</button>
+          </div>
         ) : (
           /* FORM TO UPDATE PASSWORD */
           <div>
-            <input
-              type="password"
+            <PasswordInput
               placeholder="New Password"
               onChange={(e) => setForm({...form, password: e.target.value})}
               style={{ width: '100%', padding: 12, marginBottom: 15, boxSizing: 'border-box' }}
             />
-            <input
-              type="password"
+            <PasswordInput
               placeholder="Confirm Password"
               onChange={(e) => setForm({...form, confirmPassword: e.target.value})}
               style={{ width: '100%', padding: 12, marginBottom: 20, boxSizing: 'border-box' }}

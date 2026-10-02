@@ -35,12 +35,12 @@ Deno.serve(async (request) => {
     }
 
     const body = await request.json();
-    const username = String(body?.username || '').trim().toLowerCase();
+    const email = String(body?.email || '').trim().toLowerCase();
     const password = String(body?.password || '');
     const fullName = String(body?.fullName || '').trim();
     const phone = String(body?.phone || '').trim() || null;
     const roleId = String(body?.roleId || '');
-    if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username)) return reply(400, { success: false, message: 'Username must be 3–32 characters using letters, numbers, dot, underscore, or hyphen.' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return reply(400, { success: false, message: 'A valid email address is required.' });
     if (password.length < 8) return reply(400, { success: false, message: 'Password must be at least 8 characters.' });
     if (!fullName || !roleId) return reply(400, { success: false, message: 'Full name and role are required.' });
 
@@ -48,12 +48,11 @@ Deno.serve(async (request) => {
     const requestedRoleName = String(requestedRole?.name || '').toUpperCase();
     if (!requestedRole || ['ADMIN', 'SUPERADMIN'].includes(requestedRoleName)) return reply(403, { success: false, message: 'This role cannot be assigned by an institution ADMIN.' });
 
-    const internalEmail = `${username}@users.legacycloud.local`;
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email: internalEmail,
+        const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+      email,
       password,
       email_confirm: true,
-      user_metadata: { username, full_name: fullName },
+      user_metadata: { full_name: fullName },
     });
     if (authError || !authData.user) throw authError || new Error('Unable to create Auth user.');
     createdAuthUserId = authData.user.id;
@@ -62,8 +61,7 @@ Deno.serve(async (request) => {
       id: createdAuthUserId,
       institution_id: operator.institution_id,
       full_name: fullName,
-      username,
-      email: internalEmail,
+      email,
       phone,
       role_id: roleId,
       status: 'active',
@@ -77,14 +75,14 @@ Deno.serve(async (request) => {
 
     await adminClient.from('system_audit_logs').insert({
       admin_email: caller.email || operator.email,
-      action: 'ADMIN_CREATED_USERNAME_USER',
+      action: 'ADMIN_CREATED_USER',
       target_id: createdAuthUserId,
-      details: { institution_id: operator.institution_id, username, full_name: fullName, role: requestedRoleName, actor_user_id: caller.id },
+      details: { institution_id: operator.institution_id, email, full_name: fullName, role: requestedRoleName, actor_user_id: caller.id },
     });
 
-    return reply(200, { success: true, userId: createdAuthUserId, username, message: `User ${username} created successfully.` });
+    return reply(200, { success: true, userId: createdAuthUserId, email, message: `User ${email} created successfully.` });
   } catch (error) {
     console.error('admin-create-user:', error);
-    return reply(400, { success: false, message: error?.message?.includes('duplicate') ? 'Username already exists.' : (error.message || 'Unable to create user.') });
+    return reply(400, { success: false, message: error?.message?.includes('duplicate') ? 'Email already exists.' : (error.message || 'Unable to create user.') });
   }
 });

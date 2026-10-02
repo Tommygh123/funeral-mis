@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../supabase';
+import PasswordInput from '../../components/ui/PasswordInput';
 
 function UserManagement() {
 
@@ -307,7 +308,7 @@ function UserManagement() {
         <input name="phone" placeholder="Phone Number" value={form.phone} onChange={handleChange} style={input} />
 
         {!editMode && (
-          <input name="password" type="password" placeholder="Account Password" value={form.password} onChange={handleChange} style={input} />
+          <PasswordInput name="password" placeholder="Account Password" value={form.password} onChange={handleChange} style={input} />
         )}
 
         <select name="role_id" value={form.role_id} onChange={handleChange} style={input}>

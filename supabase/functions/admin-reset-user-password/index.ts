@@ -64,7 +64,7 @@ Deno.serve(async (request) => {
 
     const { data: target, error: targetError } = await adminClient
       .from('users')
-      .select('id, username, email, full_name, institution_id, status, roles(name)')
+      .select('id, email, full_name, institution_id, status, roles(name)')
       .eq('id', targetUserId)
       .single();
     if (targetError || !target) return response(404, { success: false, message: 'Target user not found.' });
@@ -89,7 +89,6 @@ Deno.serve(async (request) => {
       details: {
         institution_id: callerProfile.institution_id,
         target_email: target.email,
-        target_username: target.username,
         target_name: target.full_name,
         target_role: targetRole,
         actor_user_id: caller.id,

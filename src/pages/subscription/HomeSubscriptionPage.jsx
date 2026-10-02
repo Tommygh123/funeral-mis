@@ -1,51 +1,47 @@
+import { loadPlanSettings, resolvePlanAudience } from '../../utils/subscriptionConfig';
 import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../supabase';
 import { useLocation } from 'react-router-dom';
 
 function HomeSubscriptionPage() {
   const [fetchingRates, setFetchingRates] = useState(true);
+  const [audienceReady,setAudienceReady] = useState(false);
   const [prices, setPrices] = useState({});
+  const [loadError, setLoadError] = useState('');
   const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isGhana, setIsGhana] = useState(true);
 
   const location = useLocation();
 
   const fetchRates = useCallback(async () => {
-    try {
-      const { data: configRows } = await supabase.from('system_global_configs').select('config_key, config_value');
-      if (configRows) {
-        const liveRates = {};
-        configRows.forEach(row => {
-          const parsed = parseFloat(row.config_value);
-          if (!isNaN(parsed)) liveRates[row.config_key] = parsed;
-        });
-        setPrices(liveRates);
-      }
-    } catch (err) { console.error("Error fetching rates:", err); }
+    try { setPrices(await loadPlanSettings()); setLoadError(''); }
+    catch (err) { setLoadError(err.message); }
   }, []);
 
   useEffect(() => {
-    // Determine Location: Priority to navigation state, fallback to detected Ghana
-    if (location.state?.country_code) {
-      setIsGhana(location.state.country_code === 'GH');
-    }
-
+    let alive = true;
     const init = async () => {
-      await fetchRates();
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user?.email === 'admin@legacycloud.com') setIsSuperAdmin(true);
-      setFetchingRates(false);
+      setFetchingRates(true);
+      try {
+        const [settings,audience] = await Promise.all([loadPlanSettings(),resolvePlanAudience(location.state?.country_code)]);
+        if (!alive) return;
+        setPrices(settings); setIsGhana(audience.isGhana); setIsSuperAdmin(audience.isSuperAdmin); setAudienceReady(true);
+        
+        setLoadError('');
+      } catch(err) { if(alive) setLoadError(err.message); }
+      finally { if(alive) setFetchingRates(false); }
     };
-
     init();
-
-    const channel = supabase.channel('schema-db-changes').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'system_global_configs' }, () => fetchRates()).subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const channel = supabase.channel('plans-'+Math.random()).on('postgres_changes',{event:'*',schema:'public',table:'system_global_configs'},fetchRates).subscribe();
+    const onFocus = () => fetchRates(); window.addEventListener('focus',onFocus);
+    return () => { alive=false; supabase.removeChannel(channel); window.removeEventListener('focus',onFocus); };
   }, [fetchRates, location.state]);
 
   if (fetchingRates) return <div style={styles.center}>Loading LegacyCloud Plan Information...</div>;
 
-  const usdRate = (prices.usd_to_ghs_rate && prices.usd_to_ghs_rate > 0) ? prices.usd_to_ghs_rate : 15;
+  if (loadError || !audienceReady) return <div style={styles.center}><p role="alert">{loadError || 'Unable to identify your account market. Please retry.'}</p><button onClick={()=>window.location.reload()}>Retry</button></div>;
+
+  const usdRate = prices.usd_to_ghs_rate;
 
   return (
     <div style={styles.page}>
@@ -56,8 +52,8 @@ function HomeSubscriptionPage() {
         <div style={styles.marketSection}>
           <div style={{...styles.sectionHeader, color: '#2563eb'}}>📍 LOCAL MARKET (GHS)</div>
           <div style={styles.grid}>
-            <InfoCard title="Local Basic" price={prices.price_local_base || 0} currency="GHS" features={["1 Funeral Record", "SMS Notifications"]} />
-            <InfoCard title="Business Volume" price={prices.price_business_volume || 0} currency="GHS" features={["5 Funeral Records", "Bulk Management"]} />
+            <InfoCard title="Local Basic" price={prices.price_local_base} currency="GHS" features={["1 Funeral Record", "SMS Notifications"]} />
+            <InfoCard title="Business Volume" price={prices.price_business_volume} currency="GHS" features={["5 Funeral Records", "Bulk Management"]} />
           </div>
         </div>
       )}
@@ -66,11 +62,12 @@ function HomeSubscriptionPage() {
         <div style={styles.marketSection}>
           <div style={{...styles.sectionHeader, color: '#f59e0b'}}>🌎 DIASPORA PREMIUM (GHS Equivalent)</div>
           <div style={styles.grid}>
-            <InfoCard title="Diaspora Standard" price={prices.price_diaspora_base || 0} usdEquivalent={(prices.price_diaspora_base / usdRate).toFixed(2)} currency="GHS" features={["1 Funeral Record", "Intl. SMS Relay"]} />
-            <InfoCard title="Diaspora 5-Funeral" price={prices.price_diaspora_5_funeral || 0} usdEquivalent={(prices.price_diaspora_5_funeral / usdRate).toFixed(2)} currency="GHS" features={["5 Funeral Records", "Registry Sync"]} />
+            <InfoCard title="Diaspora Standard" price={prices.price_diaspora_base} usdEquivalent={(prices.price_diaspora_base / usdRate).toFixed(2)} currency="GHS" features={["1 Funeral Record", "Intl. SMS Relay"]} />
+            <InfoCard title="Diaspora 5-Funeral" price={prices.price_diaspora_5_funeral} usdEquivalent={(prices.price_diaspora_5_funeral / usdRate).toFixed(2)} currency="GHS" features={["5 Funeral Records", "Registry Sync"]} />
           </div>
         </div>
       )}
+      {(!isGhana || isSuperAdmin) && <p style={{fontSize:12,color:'#64748b'}}><a href="https://www.exchangerate-api.com" target="_blank" rel="noreferrer">Rates by ExchangeRate-API</a> • USD equivalents use the saved daily reference rate.</p>}
     </div>
   );
 }

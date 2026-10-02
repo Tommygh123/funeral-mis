@@ -5,6 +5,8 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import Home from './pages/Home';
 import Login from './pages/auth/Login';
 import GetStarted from './pages/auth/GetStarted';
+import ForgotPassword from './pages/auth/ForgotPassword';
+import ResetPassword from './pages/auth/ResetPassword';
 import Donate from './pages/dashboard/Donate';
 import HomeSubscriptionPage from './pages/subscription/HomeSubscriptionPage'; // Info page for guests
 import SubscriptionPage from './pages/subscription/SubscriptionPage';       // Active management page
@@ -50,6 +52,8 @@ function App() {
       <Route path="/" element={<Home />} />
       <Route path="/login" element={<Login />} />
       <Route path="/get-started" element={<GetStarted />} />
+      <Route path="/forgot-password" element={<ForgotPassword />} />
+      <Route path="/reset-password" element={<ResetPassword />} />
       <Route path="/subscription" element={<HomeSubscriptionPage />} />
       <Route path="/donate/:funeralId" element={<Donate />} />
       

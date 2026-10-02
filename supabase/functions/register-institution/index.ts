@@ -19,45 +19,46 @@ Deno.serve(async (request) => {
 
     const body = await request.json();
     const institutionName = String(body?.institutionName || '').trim();
-    const username = String(body?.username || '').trim().toLowerCase();
+    const email = String(body?.email || '').trim().toLowerCase();
+    const fullName = String(body?.fullName || body?.name || '').trim();
     const password = String(body?.password || '');
     const phone = String(body?.phone || '').trim() || null;
     const location = String(body?.location || '').trim() || null;
     const logoUrl = String(body?.logoUrl || '').trim() || null;
 
     if (!institutionName) return reply(400, { success: false, message: 'Institution name is required.' });
-    if (!/^[a-z0-9][a-z0-9._-]{2,31}$/.test(username)) return reply(400, { success: false, message: 'Username must be 3–32 characters using letters, numbers, dot, underscore, or hyphen.' });
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return reply(400, { success: false, message: 'A valid email address is required.' });
+    if (!fullName) return reply(400, { success: false, message: 'Administrator full name is required.' });
     if (password.length < 8) return reply(400, { success: false, message: 'Password must be at least 8 characters.' });
 
-    const internalEmail = `${username}@users.legacycloud.local`;
-    const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
-      email: internalEmail,
+        const { data: authData, error: authError } = await adminClient.auth.admin.createUser({
+      email,
       password,
       email_confirm: true,
-      user_metadata: { username, full_name: institutionName },
+      user_metadata: { full_name: fullName, institution_name: institutionName },
     });
-    if (authError || !authData.user) return reply(400, { success: false, message: authError?.message?.includes('registered') ? 'Username already exists.' : (authError?.message || 'Unable to create account.') });
+    if (authError || !authData.user) return reply(400, { success: false, message: authError?.message?.toLowerCase().includes('registered') ? 'Email already exists.' : (authError?.message || 'Unable to create account.') });
 
     const authUserId = authData.user.id;
     try {
-      const { error: registrationError } = await adminClient.rpc('funeralmis_register_username_institution', {
+      const { error: registrationError } = await adminClient.rpc('funeralmis_register_email_institution', {
         p_auth_user_id: authUserId,
         p_institution_name: institutionName,
-        p_username: username,
-        p_internal_email: internalEmail,
+        p_admin_full_name: fullName,
+        p_email: email,
         p_phone: phone,
         p_location: location,
         p_logo_url: logoUrl,
       });
       if (registrationError) throw registrationError;
 
-      return reply(200, { success: true, username, message: 'Institution created successfully. Your 14-day trial is active.' });
+      return reply(200, { success: true, email, message: 'Institution created successfully. Your 14-day trial is active.' });
     } catch (databaseError) {
       await adminClient.auth.admin.deleteUser(authUserId);
       throw databaseError;
     }
   } catch (error) {
     console.error('register-institution:', error);
-    return reply(400, { success: false, message: error?.message?.includes('duplicate') ? 'Username already exists.' : (error.message || 'Unable to register institution.') });
+    return reply(400, { success: false, message: error?.message?.includes('duplicate') ? 'Email already exists.' : (error.message || 'Unable to register institution.') });
   }
 });

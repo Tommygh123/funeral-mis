@@ -5,16 +5,7 @@ function Home() {
   const navigate = useNavigate();
 
   // Location-aware navigation to the subscription page
-  const handlePricingClick = async () => {
-    try {
-      const response = await fetch('https://ipapi.co/json/');
-      const data = await response.json();
-      navigate('/subscription', { state: { country_code: data.country_code } });
-    } catch (err) {
-      // Fallback to Ghana if detection fails
-      navigate('/subscription', { state: { country_code: 'GH' } });
-    }
-  };
+  const handlePricingClick = () => navigate('/subscription');
 
   return (
     <div style={{ backgroundColor: '#050505', color: 'white', minHeight: '100vh', fontFamily: 'Arial, sans-serif' }}>

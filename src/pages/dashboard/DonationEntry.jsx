@@ -84,11 +84,10 @@ function DonationEntry() {
   const handleSubmit = async () => {
     if (!form.funeral_id) return alert("Please select a funeral.");
     if (!form.donor_name) return alert("Please enter donor name.");
-    if (!form.donor_phone_national) return alert("Please enter phone number.");
     if (!form.amount || Number(form.amount) <= 0) return alert("Please enter a valid amount.");
     
     setLoading(true);
-    const fullPhone = `${form.donor_country_code}${form.donor_phone_national}`;
+    const fullPhone = form.donor_phone_national ? `${form.donor_country_code}${form.donor_phone_national}` : null;
     const amountNumeric = Number(form.amount);
     
     const d = new Date();
@@ -110,8 +109,8 @@ function DonationEntry() {
       
       const transactionRecord = data[0];
       
-      // Fire-and-forget SMS
-      sendTestSMS({ 
+      // Send SMS only when the donor supplied a phone number.
+      if (fullPhone) sendTestSMS({ 
         institution_id: institution.id,
         transaction_id: transactionRecord.id,
         phone: fullPhone, 
@@ -139,7 +138,12 @@ function DonationEntry() {
 
   return (
     <div style={styles.container}>
-      <style>{`@media print { body * { visibility: hidden; } #receipt-print, #receipt-print * { visibility: visible; } #receipt-print { position: absolute; left: 0; top: 0; width: 80mm; } }`}</style>
+      <style>{`
+        input[type="number"]::-webkit-outer-spin-button, input[type="number"]::-webkit-inner-spin-button { -webkit-appearance: none; margin: 0; }
+        input[type="number"] { -moz-appearance: textfield; appearance: textfield; }
+        @media (max-width: 520px) { .phone-input-row, .amount-input-row { display: flex; } }
+        @media print { body * { visibility: hidden; } #receipt-print, #receipt-print * { visibility: visible; } #receipt-print { position: absolute; left: 0; top: 0; width: 80mm; } }
+      `}</style>
 
       {receipt ? (
         <div id="receipt-print" style={styles.thermalSlip}>
@@ -175,25 +179,39 @@ function DonationEntry() {
         <>
           <h2 style={styles.title}>Donation Entry</h2>
           {selectedFuneral?.photo_url && <img src={selectedFuneral.photo_url} alt="Deceased" style={styles.image} />}
-          <label>Active Funeral</label>
-          <select name="funeral_id" value={form.funeral_id} onChange={handleChange} style={styles.input}>{funerals.map(f => <option key={f.id} value={f.id}>{f.full_name}</option>)}</select>
-          <label>Donor Name</label>
-          <input name="donor_name" value={form.donor_name} onChange={handleChange} style={styles.input} />
-          <label>Donor Phone</label>
-          <div className="phone-input-row">
-            <select name="donor_country_code" value={form.donor_country_code} onChange={handleChange} style={{ width: '100px', ...styles.input }}>{internationalCodes.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}</select>
-            <input name="donor_phone_national" type="tel" value={form.donor_phone_national} onChange={handleChange} style={{ flex: 1, ...styles.input }} />
+
+          <label style={styles.label}>Active Funeral <span style={styles.required}>*</span></label>
+          <select name="funeral_id" value={form.funeral_id} onChange={handleChange} style={{ ...styles.input, ...styles.blueField }}>
+            {funerals.map(f => <option key={f.id} value={f.id}>{f.full_name}</option>)}
+          </select>
+
+          <label style={styles.label}>Donor Name <span style={styles.required}>*</span></label>
+          <input name="donor_name" value={form.donor_name} onChange={handleChange} style={{ ...styles.input, ...styles.greenField }} placeholder="Enter donor name" />
+
+          <label style={styles.label}>Donor Phone <span style={styles.optional}>(Optional)</span></label>
+          <div className="phone-input-row" style={styles.row}>
+            <select name="donor_country_code" value={form.donor_country_code} onChange={handleChange} style={{ width: '128px', ...styles.input, ...styles.neutralField }}>
+              {internationalCodes.map(c => <option key={c.code} value={c.code}>{c.label}</option>)}
+            </select>
+            <input name="donor_phone_national" type="tel" value={form.donor_phone_national} onChange={handleChange} style={{ flex: 1, ...styles.input }} placeholder="Phone number (optional)" />
           </div>
-          <label>Donated To</label>
-          <input name="recipient_name" value={form.recipient_name} onChange={handleChange} style={styles.input} />
-          <input name="recipient_relation" value={form.recipient_relation} onChange={handleChange} style={styles.input} placeholder="Relation" />
-          <label>Amount</label>
-          <div className="amount-input-row">
-            <input name="amount" type="number" value={form.amount} onChange={handleChange} style={{ flex: 2, ...styles.input }} />
-            <select name="currency" value={form.currency} onChange={handleChange} style={{ flex: 1, ...styles.input }}><option value="GHS">GHS</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option></select>
+
+          <label style={styles.label}>Donated To</label>
+          <input name="recipient_name" value={form.recipient_name} onChange={handleChange} style={{ ...styles.input, ...styles.blueField }} placeholder="e.g. Family, Church, Mosque, etc." />
+          <input name="recipient_relation" value={form.recipient_relation} onChange={handleChange} style={styles.input} placeholder="Relation (e.g. Brother, Friend, etc.)" />
+
+          <label style={styles.label}>Amount <span style={styles.required}>*</span></label>
+          <div className="amount-input-row" style={styles.row}>
+            <input name="amount" type="number" inputMode="decimal" min="0" step="0.01" value={form.amount} onChange={handleChange} style={{ flex: 2, ...styles.input, ...styles.goldField }} placeholder="Enter amount" />
+            <select name="currency" value={form.currency} onChange={handleChange} style={{ flex: 1, ...styles.input, ...styles.neutralField }}>
+              <option value="GHS">GHS</option><option value="USD">USD</option><option value="EUR">EUR</option><option value="GBP">GBP</option>
+            </select>
           </div>
-          <label>Payment Method</label>
-          <select name="payment_method" value={form.payment_method} onChange={handleChange} style={styles.input}><option value="cash">Cash</option><option value="momo">Mobile Money</option><option value="card">Card</option><option value="bank">Bank Transfer</option></select>
+
+          <label style={styles.label}>Payment Method <span style={styles.required}>*</span></label>
+          <select name="payment_method" value={form.payment_method} onChange={handleChange} style={{ ...styles.input, ...styles.purpleField }}>
+            <option value="cash">Cash</option><option value="momo">Mobile Money</option><option value="card">Card</option><option value="bank">Bank Transfer</option>
+          </select>
           <button onClick={handleSubmit} disabled={loading} style={styles.button}>{loading ? "Saving..." : "Save & Print"}</button>
         </>
       )}
@@ -202,11 +220,20 @@ function DonationEntry() {
 }
 
 const styles = {
-  container: { padding: 15, maxWidth: 400, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: 8 },
-  input: { padding: 8, border: '1px solid #ccc', borderRadius: 4 },
-  button: { padding: 10, background: '#007bff', color: 'white', border: 'none', borderRadius: 4, cursor: 'pointer', width: '100%' },
-  image: { width: 80, height: 80, borderRadius: '50%', marginBottom: 5, alignSelf: 'center' },
-  title: { textAlign: 'center', fontSize: 18 },
+  container: { padding: '22px', maxWidth: 460, margin: '18px auto', display: 'flex', flexDirection: 'column', gap: 10, background: '#ffffff', border: '1px solid #e7edf5', borderRadius: 16, boxShadow: '0 12px 34px rgba(15, 23, 42, 0.08)' },
+  input: { padding: '12px 13px', border: '1px solid #cbd5e1', borderRadius: 8, fontSize: 14, width: '100%', boxSizing: 'border-box', outline: 'none', background: '#fff' },
+  label: { fontWeight: 650, color: '#172554', marginTop: 3 },
+  required: { color: '#dc2626' },
+  optional: { color: '#64748b', fontWeight: 500, fontSize: 13 },
+  row: { display: 'flex', gap: 8, width: '100%' },
+  blueField: { background: '#eff6ff', borderColor: '#93c5fd' },
+  greenField: { background: '#f0fdf4', borderColor: '#86efac' },
+  goldField: { background: '#fffbeb', borderColor: '#fcd34d' },
+  purpleField: { background: '#faf5ff', borderColor: '#d8b4fe' },
+  neutralField: { background: '#f8fafc' },
+  button: { padding: 13, background: '#087cf0', color: 'white', border: 'none', borderRadius: 8, cursor: 'pointer', width: '100%', fontWeight: 700, marginTop: 4 },
+  image: { width: 82, height: 82, objectFit: 'cover', borderRadius: '50%', marginBottom: 3, alignSelf: 'center', border: '4px solid #f1f5f9' },
+  title: { textAlign: 'center', fontSize: 20, color: '#172554', marginBottom: 4 },
   thermalSlip: { width: '80mm', background: '#fff', padding: '20px', margin: '0 auto', border: '1px solid #eee', fontFamily: 'Arial', fontSize: 13, color: '#000' },
   instHeader: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '5px', marginBottom: '10px' },
   brandLogo: { width: '50px', height: '50px', objectFit: 'contain' },

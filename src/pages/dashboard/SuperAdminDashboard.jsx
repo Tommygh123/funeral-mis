@@ -1,3 +1,4 @@
+import { parsePlanSettings } from '../../utils/subscriptionConfig';
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { supabase } from '../../supabase';
 import AuditLog from './AuditLog';
@@ -7,6 +8,10 @@ function SuperAdminDashboard() {
   const [activeTab, setActiveTab] = useState('dashboard');
   const [metrics, setMetrics] = useState({ subGHS: 0, subUSD: 0, subEUR: 0, subGBP: 0 });
   const [subscriptions, setSubscriptions] = useState([]);
+  const [institutions,setInstitutions] = useState([]);
+  const [directoryError,setDirectoryError] = useState('');
+  const [recordView,setRecordView] = useState('institutions');
+  const [activeFuneralCount,setActiveFuneralCount] = useState(0);
   const [activeFunerals, setActiveFunerals] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -20,64 +25,76 @@ function SuperAdminDashboard() {
     usd_to_ghs_rate: 15
   });
   
+  const [rateStatus,setRateStatus] = useState('Checking automatic currency update status...');
+  const [checkingRate,setCheckingRate] = useState(false);
   const [updating, setUpdating] = useState(false);
   const isMounted = useRef(true);
 
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
-      const [ { data: configs }, { data: subData }, { data: funeralData } ] = await Promise.all([
+      const [configResult,directoryResult] = await Promise.all([
         supabase.from('system_global_configs').select('config_key, config_value'),
-        supabase.from('subscriptions').select(`amount, currency, status, plan_name, institutions (name)`),
-        supabase.from('funerals').select(`full_name, location, burial_date, status, institutions (name)`).eq('status', 'active')
+        supabase.rpc('legacycloud_superadmin_directory')
       ]);
-
       if (!isMounted.current) return;
+      if(configResult.error) throw new Error('Unable to read Global Configuration: '+configResult.error.message);
+      if(configResult.data) setSystemSettings(prev=>({...prev,...parsePlanSettings(configResult.data)}));
+      if(directoryResult.error) throw new Error('Unable to load institutions: '+directoryResult.error.message);
+      const directory=directoryResult.data || {};
+      const subData=directory.subscriptions || [];
+      setInstitutions(directory.institutions || []); setSubscriptions(subData);
+      setActiveFuneralCount(Number(directory.active_funeral_count || 0)); setDirectoryError('');
+      const totals={GHS:0,USD:0,EUR:0,GBP:0};
+      subData.forEach(row=>{if(Object.prototype.hasOwnProperty.call(totals,row.currency)) totals[row.currency]+=Number(row.amount)||0;});
+      setMetrics({subGHS:totals.GHS,subUSD:totals.USD,subEUR:totals.EUR,subGBP:totals.GBP});
 
-      if (configs) {
-        let newSettings = { ...systemSettings };
-        configs.forEach(row => { 
-          if (Object.prototype.hasOwnProperty.call(systemSettings, row.config_key)) {
-            newSettings[row.config_key] = Number(row.config_value); 
-          }
-        });
-        setSystemSettings(newSettings);
-      }
-
-      const sTotals = { GHS: 0, USD: 0, EUR: 0, GBP: 0 };
-      (subData || []).forEach(s => {
-        if (s.currency && sTotals.hasOwnProperty(s.currency)) sTotals[s.currency] += (s.amount || 0);
-      });
-
-      setSubscriptions(subData || []);
-      setActiveFunerals(funeralData || []);
-      setMetrics({ subGHS: sTotals.GHS, subUSD: sTotals.USD, subEUR: sTotals.EUR, subGBP: sTotals.GBP });
-    } catch (err) { console.error("Load Error:", err); } 
+    } catch (err) { if(isMounted.current) setDirectoryError(err.message); } 
     finally { if (isMounted.current) setLoading(false); }
   }, []);
 
-  useEffect(() => { 
-    isMounted.current = true;
-    loadData(); 
-    return () => { isMounted.current = false; };
-  }, [loadData]);
+  const refreshRate = useCallback(async () => {
+    setCheckingRate(true);
+    try {
+      const {data:current,error} = await supabase.rpc('legacycloud_fx_status');
+      if(error) throw new Error('Unable to read automatic update status: '+error.message);
+      if(!current?.scheduled) throw new Error('Automatic update job is not installed or is disabled.');
+      if(isMounted.current) {
+        if(Number(current.rate)>0) setSystemSettings(prev=>({...prev,usd_to_ghs_rate:Number(current.rate)}));
+        const published=current.published_at ? new Date(current.published_at).toLocaleString() : 'awaiting first check';
+        setRateStatus(`Automatic hourly checks • Published ${published}${current.pending?' • Checking provider...':''}${current.last_error?' • '+current.last_error+'; last saved rate retained.':''}`);
+      }
+
+    } catch(err) {if(isMounted.current) setRateStatus(`${err.message} Keeping the last saved rate.`);}
+    finally {if(isMounted.current) setCheckingRate(false);}
+  }, []);
+  useEffect(() => {
+    isMounted.current=true;
+    loadData().then(()=>{if(isMounted.current) refreshRate();});
+    const timer=setInterval(refreshRate,60000);
+    return ()=>{isMounted.current=false;clearInterval(timer);};
+  },[loadData,refreshRate]);
 
   const saveSettings = async (e) => {
     e.preventDefault();
+    if(Object.values(systemSettings).some(value=>!Number.isFinite(value)||value<=0)) {alert('Enter a valid positive value for every plan and rate.');return;}
     setUpdating(true);
-    const updates = Object.entries(systemSettings).map(([key, val]) => ({ config_key: key, config_value: val.toString() }));
+    const updates = Object.entries(systemSettings).filter(([key])=>key!=='usd_to_ghs_rate').map(([key, val]) => ({ config_key: key, config_value: val.toString() }));
     const { error } = await supabase.from('system_global_configs').upsert(updates, { onConflict: 'config_key' });
     if (!error) {
       const { data: { user } } = await supabase.auth.getUser();
       await supabase.from('system_audit_logs').insert({ admin_email: user?.email, action: 'UPDATE_CONFIG', details: systemSettings });
       alert("Registry Updated Successfully");
     }
+    if(error) alert('Registry could not be saved: '+error.message);
     setUpdating(false);
   };
 
-  const filteredSubs = subscriptions.filter(s => 
-    s.institutions?.name?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const records=recordView==='institutions' ? institutions : subscriptions;
+  const filteredSubs=records.filter(row=>`${row.institution_name || ''} ${row.plan_name || ''} ${row.status || ''}`.toLowerCase().includes(searchTerm.trim().toLowerCase()));
+  const badgeColor=status=>['active','paid','completed'].includes(String(status).toLowerCase())
+    ? {background:'#dcfce7',color:'#166534'} : ['expired','cancelled','suspended'].includes(String(status).toLowerCase())
+    ? {background:'#fee2e2',color:'#991b1b'} : {background:'#e2e8f0',color:'#475569'};
 
   return (
     <div style={styles.page}>
@@ -95,7 +112,7 @@ function SuperAdminDashboard() {
         <>
           <div style={styles.section}>
             <h2 style={styles.sectionTitle}>💰 Subscription Earnings</h2>
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '20px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', marginBottom: '20px' }}>
                {[ { c: 'GHS', color: '#2563eb' }, { c: 'USD', color: '#059669' }, { c: 'EUR', color: '#7c3aed' }, { c: 'GBP', color: '#db2777' } ].map(item => (
                  <div key={item.c} style={{...styles.card, borderLeft: `6px solid ${item.color}`}}>
                    <h3 style={{...styles.kpiLabel, color: item.color}}>{item.c} Revenue</h3>
@@ -106,23 +123,37 @@ function SuperAdminDashboard() {
           </div>
 
           <div style={styles.section}>
-            <h2 style={styles.sectionTitle}>📋 All Institutional Subscription Records</h2>
-            <input placeholder="Search Institution..." value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} style={styles.search} />
-            <div style={{ overflowX: 'auto', marginTop: '20px' }}>
-            <table style={styles.table}>
-              <thead><tr style={styles.th}><th>Institution</th><th>Plan</th><th>Status</th><th>Amount</th></tr></thead>
-              <tbody>
-                {filteredSubs.map((s, i) => (
-                  <tr key={i} style={styles.tr}>
-                    <td style={{...styles.td, fontWeight: '600'}}>{s.institutions?.name || 'N/A'}</td>
-                    <td style={styles.td}>{s.plan_name}</td>
-                    <td style={styles.td}><span style={styles.badge}>{s.status}</span></td>
-                    <td style={{...styles.td, color: '#059669', fontWeight: 'bold'}}>{s.amount?.toLocaleString()}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <div style={{display:'flex',flexWrap:'wrap',justifyContent:'space-between',alignItems:'center',gap:12}}>
+              <div><h2 style={{...styles.sectionTitle,marginBottom:6}}>Institutions & Subscriptions</h2>
+                <p style={{color:'#64748b',fontSize:13,margin:0}}>{institutions.length} institutions • {subscriptions.length} subscription records • {activeFuneralCount} active funerals</p>
+              </div>
+              <button type="button" onClick={loadData} disabled={loading} style={{...styles.button,marginTop:0,padding:'10px 18px'}}>{loading?'Loading...':'Refresh records'}</button>
             </div>
+            <div style={{display:'flex',flexWrap:'wrap',alignItems:'center',gap:12,marginTop:20}}>
+              <select aria-label="Record view" value={recordView} onChange={e=>setRecordView(e.target.value)} style={{...styles.search,width:'auto'}}>
+                <option value="institutions">All institutions</option><option value="subscriptions">Subscription history</option>
+              </select>
+              <input aria-label="Search institutions" placeholder="Search institution, plan or status..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)} style={{...styles.search,flex:'1 1 240px',width:'auto'}} />
+              {searchTerm&&<button type="button" onClick={()=>setSearchTerm('')} style={{border:'1px solid #cbd5e1',background:'#fff',borderRadius:8,padding:'10px 14px',cursor:'pointer'}}>Clear search</button>}
+            </div>
+            {directoryError&&<p role="alert" style={{background:'#fef2f2',color:'#991b1b',padding:14,borderRadius:8}}>{directoryError}</p>}
+            <div style={{overflow:'auto',maxHeight:480,marginTop:16,border:'1px solid #e2e8f0',borderRadius:10}}>
+              <table style={{...styles.table,borderCollapse:'collapse',minWidth:700}}>
+                <thead><tr>{['Institution','Plan','Status','Amount','Expiry'].map(label=><th key={label} style={{...styles.th,background:'#eff6ff',color:'#173f70',fontWeight:700,position:'sticky',top:0}}>{label}</th>)}</tr></thead>
+                <tbody>
+                  {loading?<tr><td colSpan={5} style={{...styles.td,textAlign:'center'}}>Loading institutions...</td></tr>:directoryError?null:filteredSubs.length?filteredSubs.map((row,index)=>(
+                    <tr key={row.id || row.institution_id || index} style={{...styles.tr,background:index%2?'#f8fafc':'#fff'}}>
+                      <td style={{...styles.td,fontWeight:600,color:'#1e293b'}}>{row.institution_name || 'Institution unavailable'}</td>
+                      <td style={styles.td}>{String(row.plan_name || 'No subscription').replace(/_/g,' ')}</td>
+                      <td style={styles.td}><span style={{...styles.badge,...badgeColor(row.status)}}>{row.status || 'No subscription'}</span></td>
+                      <td style={{...styles.td,color:'#166534',fontWeight:600}}>{row.amount==null?'—':`${row.currency || 'GHS'} ${Number(row.amount).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2})}`}</td>
+                      <td style={styles.td}>{row.expires_at?new Date(row.expires_at).toLocaleDateString():'—'}</td>
+                    </tr>
+                  )):<tr><td colSpan={5} style={{...styles.td,textAlign:'center',color:'#64748b',padding:30}}>{searchTerm?'No records match your search. Clear the search to see all records.':recordView==='institutions'?'No institutions have been registered yet.':'No subscription records yet. Switch to All institutions to see registered institutions.'}</td></tr>}
+                </tbody>
+              </table>
+            </div>
+            {!loading&&!directoryError&&<p style={{fontSize:12,color:'#64748b',marginBottom:0}}>{filteredSubs.length} of {records.length} records shown</p>}
           </div>
 
           <div style={styles.configSection}>
@@ -131,11 +162,14 @@ function SuperAdminDashboard() {
               <h4 style={styles.planHeading}>💱 Currency Conversion</h4>
               <div style={{ marginBottom: '20px', maxWidth: '300px' }}>
                 <label style={styles.label}>USD TO GHS RATE</label>
-                <input type="number" step="0.01" value={systemSettings.usd_to_ghs_rate} onChange={(e) => setSystemSettings(prev => ({...prev, usd_to_ghs_rate: Number(e.target.value)}))} style={styles.input} />
+                <input type="number" step="any" readOnly value={systemSettings.usd_to_ghs_rate} style={styles.input} />
+                <small style={{display:'block',marginTop:8}}>{rateStatus}</small>
+                <button type="button" disabled={checkingRate} onClick={refreshRate} style={{...styles.button,padding:'8px 12px',marginTop:10}}>{checkingRate?'Checking...':'Refresh rate status'}</button>
+                <small style={{display:'block',marginTop:8}}><a href="https://www.exchangerate-api.com" target="_blank" rel="noreferrer" style={{color:'#cbd5e1'}}>Rates by ExchangeRate-API</a> • Daily reference rate</small>
               </div>
 
               <h4 style={styles.planHeading}>📍 Local Market Settings (GHS)</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '20px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', marginBottom: '20px' }}>
                 {['price_local_base', 'price_local_stream', 'price_business_volume'].map(key => (
                   <div key={key}>
                     <label style={styles.label}>{key.replace(/_/g, ' ').toUpperCase()}</label>
@@ -143,8 +177,8 @@ function SuperAdminDashboard() {
                   </div>
                 ))}
               </div>
-              <h4 style={styles.planHeading}>🌎 Diaspora Market Settings ($)</h4>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '10px' }}>
+              <h4 style={styles.planHeading}>🌎 Diaspora Market Settings (GHS Equivalent)</h4>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '20px', marginBottom: '10px' }}>
                 {['price_diaspora_base', 'price_diaspora_5_funeral', 'price_diaspora_stream'].map(key => (
                   <div key={key}>
                     <label style={styles.label}>{key.replace(/_/g, ' ').toUpperCase()}</label>
@@ -152,7 +186,7 @@ function SuperAdminDashboard() {
                   </div>
                 ))}
               </div>
-              <button type="submit" disabled={updating} style={styles.button}>{updating ? "Saving..." : "💾 Commit Changes"}</button>
+              <button type="submit" disabled={updating || checkingRate || loading} style={styles.button}>{updating ? "Saving..." : "💾 Commit Changes"}</button>
             </form>
           </div>
         </>
@@ -162,7 +196,7 @@ function SuperAdminDashboard() {
 }
 
 const styles = {
-  page: { padding: '30px', background: '#f1f5f9', minHeight: '100vh', fontFamily: 'Inter' },
+  page: { padding: '30px', background: '#f1f5f9', minHeight: '100vh', fontFamily: 'Inter, Arial, sans-serif' },
   title: { color: '#1e293b', marginBottom: '30px' },
   tabContainer: { display: 'flex', gap: '20px', marginBottom: '20px' },
   tab: { padding: '10px', cursor: 'pointer', background: 'none', border: 'none', fontWeight: '600', color: '#475569' },

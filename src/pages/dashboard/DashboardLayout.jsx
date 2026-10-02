@@ -19,8 +19,7 @@ const MENU_BY_ROLE = {
   ],
   admin: [
     { label: 'Admin Dashboard', path: '/admin' },
-    { label: 'Create User', path: '/admin/create-user' },
-    { label: 'Manage Users', path: '/admin/manage-users' },
+    { label: 'User Management', path: '/admin/manage-users' },
     { label: 'Register Funeral', path: '/admin/funerals/create' },
     { label: 'QR Generator', path: '/admin/qr-generator' },
     { label: 'Reports', path: '/admin/reports' },

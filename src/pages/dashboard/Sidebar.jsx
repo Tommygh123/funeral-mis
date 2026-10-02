@@ -16,8 +16,7 @@ const MENU_BY_ROLE = {
   ],
   admin: [
     { label: 'Dashboard', path: '/admin' },
-    { label: 'Users → Create', path: '/admin/create-user' },
-    { label: 'Users → Manage', path: '/admin/manage-users' },
+    { label: 'User Management', path: '/admin/manage-users' },
     { label: 'Funeral → Register', path: '/admin/funerals/create' },
     { label: 'Funeral → List', path: '/admin/funerals' },
     { label: 'Subscription', path: '/admin/subscription' },

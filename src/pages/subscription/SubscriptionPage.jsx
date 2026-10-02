@@ -1,3 +1,4 @@
+import { loadPlanSettings, resolvePlanAudience } from '../../utils/subscriptionConfig';
 import React, { useEffect, useState, useCallback } from 'react';
 import { supabase } from '../../supabase';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -7,8 +8,10 @@ function SubscriptionPage() {
   const [institutionId, setInstitutionId] = useState(null);
   const [userEmail, setUserEmail] = useState("");
   const [fetchingRates, setFetchingRates] = useState(true);
+  const [audienceReady,setAudienceReady] = useState(false);
   const [prices, setPrices] = useState({});
-  const [isSuperAdmin, setIsSuperAdmin] = useState(true);
+  const [loadError, setLoadError] = useState('');
+  const [isSuperAdmin, setIsSuperAdmin] = useState(false);
   const [isGhana, setIsGhana] = useState(true);
 
   const navigate = useNavigate();
@@ -16,45 +19,27 @@ function SubscriptionPage() {
   const PUBLIC_KEY = 'pk_live_50a719cc2fe52c445af64eb7273d85b1dbf36dde';
 
   const fetchRates = useCallback(async () => {
-    try {
-      const { data: configRows } = await supabase.from('system_global_configs').select('config_key, config_value');
-      if (configRows) {
-        const liveRates = {};
-        configRows.forEach(row => {
-          const parsed = parseFloat(row.config_value);
-          if (!isNaN(parsed)) liveRates[row.config_key] = parsed;
-        });
-        setPrices(liveRates);
-      }
-    } catch (err) { console.error("Error fetching rates:", err); }
+    try { setPrices(await loadPlanSettings()); setLoadError(''); }
+    catch (err) { setLoadError(err.message); }
   }, []);
 
   useEffect(() => {
-    // 1. Determine Location from Navigation State
-    if (location.state?.country_code) {
-      setIsGhana(location.state.country_code === 'GH');
-    }
-
-    // 2. Init Auth and Data
+    let alive = true;
     const init = async () => {
-      await fetchRates();
-      
-      const { data: { user } } = await supabase.auth.getUser();
-      if (user) {
-        setUserEmail(user.email);
-        // Strict SuperAdmin Check
-        if (user.email === 'admin@legacycloud.com') setIsSuperAdmin(true);
-        
-        const { data } = await supabase.from('users').select('institution_id').eq('id', user.id).single();
-        setInstitutionId(data?.institution_id);
-      }
-      setFetchingRates(false);
+      setFetchingRates(true);
+      try {
+        const [settings,audience] = await Promise.all([loadPlanSettings(),resolvePlanAudience(location.state?.country_code)]);
+        if (!alive) return;
+        setPrices(settings); setIsGhana(audience.isGhana); setIsSuperAdmin(audience.isSuperAdmin); setAudienceReady(true);
+        setInstitutionId(audience.institutionId); setUserEmail(audience.userEmail);
+        setLoadError('');
+      } catch(err) { if(alive) setLoadError(err.message); }
+      finally { if(alive) setFetchingRates(false); }
     };
-
     init();
-
-    const channel = supabase.channel('schema-db-changes').on('postgres_changes', { event: 'UPDATE', schema: 'public', table: 'system_global_configs' }, () => fetchRates()).subscribe();
-    return () => { supabase.removeChannel(channel); };
+    const channel = supabase.channel('plans-'+Math.random()).on('postgres_changes',{event:'*',schema:'public',table:'system_global_configs'},fetchRates).subscribe();
+    const onFocus = () => fetchRates(); window.addEventListener('focus',onFocus);
+    return () => { alive=false; supabase.removeChannel(channel); window.removeEventListener('focus',onFocus); };
   }, [fetchRates, location.state]);
 
   const handlePaymentSuccess = async (reference, planData) => {
@@ -70,7 +55,9 @@ function SubscriptionPage() {
 
   if (fetchingRates) return <div style={styles.center}>Synchronizing Registry...</div>;
 
-  const usdRate = (prices.usd_to_ghs_rate && prices.usd_to_ghs_rate > 0) ? prices.usd_to_ghs_rate : 15;
+  if (loadError || !audienceReady) return <div style={styles.center}><p role="alert">{loadError || 'Unable to identify your account market. Please retry.'}</p><button onClick={()=>window.location.reload()}>Retry</button></div>;
+
+  const usdRate = prices.usd_to_ghs_rate;
 
   return (
     <div style={styles.page}>
@@ -82,8 +69,8 @@ function SubscriptionPage() {
         <div style={styles.marketSection}>
           <div style={{...styles.sectionHeader, color: '#2563eb'}}>📍 LOCAL MARKET (GHS)</div>
           <div style={styles.grid}>
-            <PlanCard title="Local Basic" price={prices.price_local_base || 0} currency="GHS" features={["1 Funeral Record", "SMS Notifications"]} onPay={(ref) => handlePaymentSuccess(ref, { plan_name: 'local_basic', amount: prices.price_local_base, currency: 'GHS', max_funerals: 1 })} userEmail={userEmail} publicKey={PUBLIC_KEY} />
-            <PlanCard title="Business Volume" price={prices.price_business_volume || 0} currency="GHS" features={["5 Funeral Records", "Bulk Management"]} onPay={(ref) => handlePaymentSuccess(ref, { plan_name: 'business', amount: prices.price_business_volume, currency: 'GHS', max_funerals: 5 })} userEmail={userEmail} publicKey={PUBLIC_KEY} />
+            <PlanCard title="Local Basic" price={prices.price_local_base} currency="GHS" features={["1 Funeral Record", "SMS Notifications"]} onPay={(ref) => handlePaymentSuccess(ref, { billing_market: 'local', plan_name: 'local_basic', amount: prices.price_local_base, currency: 'GHS', max_funerals: 1 })} userEmail={userEmail} publicKey={PUBLIC_KEY} />
+            <PlanCard title="Business Volume" price={prices.price_business_volume} currency="GHS" features={["5 Funeral Records", "Bulk Management"]} onPay={(ref) => handlePaymentSuccess(ref, { billing_market: 'local', plan_name: 'business', amount: prices.price_business_volume, currency: 'GHS', max_funerals: 5 })} userEmail={userEmail} publicKey={PUBLIC_KEY} />
           </div>
         </div>
       )}
@@ -93,11 +80,12 @@ function SubscriptionPage() {
         <div style={styles.marketSection}>
           <div style={{...styles.sectionHeader, color: '#f59e0b'}}>🌎 DIASPORA PREMIUM (GHS Equivalent)</div>
           <div style={styles.grid}>
-            <PlanCard title="Diaspora Standard" price={prices.price_diaspora_base || 0} usdEquivalent={(prices.price_diaspora_base / usdRate).toFixed(2)} currency="GHS" features={["1 Funeral Record", "Intl. SMS Relay"]} onPay={(ref) => handlePaymentSuccess(ref, { plan_name: 'diaspora_std', amount: prices.price_diaspora_base, currency: 'GHS', max_funerals: 1 })} userEmail={userEmail} publicKey={PUBLIC_KEY} />
-            <PlanCard title="Diaspora 5-Funeral" price={prices.price_diaspora_5_funeral || 0} usdEquivalent={(prices.price_diaspora_5_funeral / usdRate).toFixed(2)} currency="GHS" features={["5 Funeral Records", "Registry Sync"]} onPay={(ref) => handlePaymentSuccess(ref, { plan_name: 'diaspora_5', amount: prices.price_diaspora_5_funeral, currency: 'GHS', max_funerals: 5 })} userEmail={userEmail} publicKey={PUBLIC_KEY} />
+            <PlanCard title="Diaspora Standard" price={prices.price_diaspora_base} usdEquivalent={(prices.price_diaspora_base / usdRate).toFixed(2)} currency="GHS" features={["1 Funeral Record", "Intl. SMS Relay"]} onPay={(ref) => handlePaymentSuccess(ref, { billing_market: 'diaspora', plan_name: 'diaspora_std', amount: prices.price_diaspora_base, currency: 'GHS', max_funerals: 1 })} userEmail={userEmail} publicKey={PUBLIC_KEY} />
+            <PlanCard title="Diaspora 5-Funeral" price={prices.price_diaspora_5_funeral} usdEquivalent={(prices.price_diaspora_5_funeral / usdRate).toFixed(2)} currency="GHS" features={["5 Funeral Records", "Registry Sync"]} onPay={(ref) => handlePaymentSuccess(ref, { billing_market: 'diaspora', plan_name: 'diaspora_5', amount: prices.price_diaspora_5_funeral, currency: 'GHS', max_funerals: 5 })} userEmail={userEmail} publicKey={PUBLIC_KEY} />
           </div>
         </div>
       )}
+      {(!isGhana || isSuperAdmin) && <p style={{fontSize:12,color:'#64748b'}}><a href="https://www.exchangerate-api.com" target="_blank" rel="noreferrer">Rates by ExchangeRate-API</a> • USD equivalents use the saved daily reference rate.</p>}
     </div>
   );
 }
@@ -106,7 +94,7 @@ function PlanCard({ title, price, usdEquivalent, currency, features, userEmail, 
   const initializePayment = usePaystackPayment({ 
     reference: `sub_${Date.now()}`, 
     email: userEmail, 
-    amount: price * 100, 
+    amount: Math.round(price * 100), 
     publicKey: publicKey,
     currency: currency 
   });
@@ -123,7 +111,7 @@ function PlanCard({ title, price, usdEquivalent, currency, features, userEmail, 
         <span style={styles.cycle}>/ Cycle</span>
       </div>
       <ul style={styles.list}>{features.map((f, i) => <li key={i}>✓ {f}</li>)}</ul>
-      <button style={{...styles.btn, backgroundColor: borderColor}} onClick={() => initializePayment({ onSuccess: onPay })}>Select Plan</button>
+      <button style={{...styles.btn, backgroundColor: borderColor}} disabled={!userEmail || !Number.isFinite(price) || price <= 0} onClick={() => initializePayment({ onSuccess: onPay })}>Select Plan</button>
     </div>
   );
 }
